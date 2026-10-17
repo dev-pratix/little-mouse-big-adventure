@@ -9,7 +9,7 @@ import { rug, wallpaper, woodFloor } from "./textures";
 
 export const ROOM = { minX: -8.0, maxX: 8.0, minZ: -6.5, maxZ: 6.5, h: 9.0 };
 export const HOLE = { x: -5.0, w: 0.40, h: 0.38 };
-export const NOOK = { minX: -5.85, maxX: -4.15, minZ: -8.0, maxZ: -6.5, h: 0.70 };
+export const NOOK = { minX: -5.85, maxX: -4.15, minZ: -8.0, maxZ: -6.80, h: 0.70 };
 export const START = { x: -5.0, z: -7.35, yaw: 0 };
 export const CHEESE_SPOTS: [number, number][] = [
   [4.50, -2.40], // Study beside desk
@@ -18,7 +18,7 @@ export const CHEESE_SPOTS: [number, number][] = [
 ];
 
 export function isHome(x: number, z: number) {
-  return z < -6.65 && x > NOOK.minX && x < NOOK.maxX;
+  return z < -6.75 && x > NOOK.minX && x < NOOK.maxX;
 }
 
 const mat = (color: string, o: Partial<THREE.MeshStandardMaterialParameters> = {}) =>
@@ -295,17 +295,6 @@ export function buildWorld(scene: THREE.Scene): World {
     maxZ: ROOM.maxZ + 1,
   });
 
-  // ── Rug ───────────────────────────────────────────────────────────────
-  // Procedural rug: immediate visual feedback under Living Room suite
-  // Centered in SW Living Room at X = -4.50, Z = -3.80, size 4.2m x 3.2m
-  const rg = mesh(
-    new THREE.PlaneGeometry(4.20, 3.20),
-    mat("#ffffff", { map: rug(), roughness: 1 }),
-    -4.50, 0.01, -3.80, false,
-  );
-  rg.rotation.x = -Math.PI / 2;
-  g.add(rg);
-
   // ── Mouse home (compact, cosy nest behind the discreet mouse hole) ──
   const n = NOOK;
   const nw = n.maxX - n.minX, nd = n.maxZ - n.minZ;
@@ -321,13 +310,25 @@ export function buildWorld(scene: THREE.Scene): World {
   plane(nd, n.h, n.minX, n.h / 2, ncz, 0, Math.PI / 2); // left wall at x = -5.85
   plane(nd, n.h, n.maxX, n.h / 2, ncz, 0, Math.PI / 2); // right wall at x = -4.15
   plane(nw, nd, ncx, n.h, ncz, Math.PI / 2, 0); // low ceiling at y = 0.70
+
+  // Nest floor: stays strictly within nest boundary [Z: -8.00 to -6.80]
   const nfloor = mesh(
     new THREE.PlaneGeometry(nw, nd),
     mat("#9e6b44"),
-    ncx, 0.005, ncz, false,
+    ncx, 0.003, ncz, false,
   );
   nfloor.rotation.x = -Math.PI / 2;
   g.add(nfloor);
+
+  // Entrance threshold: seamlessly bridges the 0.30m wall thickness between nest and room
+  const threshold = mesh(
+    new THREE.PlaneGeometry(HOLE.w, 0.30),
+    mat("#8a5a36"),
+    HOLE.x, 0.002, -6.65, false,
+  );
+  threshold.rotation.x = -Math.PI / 2;
+  g.add(threshold);
+
   colliders.push(
     { minX: n.minX - 1, maxX: n.minX, minZ: n.minZ - 1, maxZ: ROOM.minZ },
     { minX: n.maxX, maxX: n.maxX + 1, minZ: n.minZ - 1, maxZ: ROOM.minZ },

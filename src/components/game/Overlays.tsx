@@ -75,6 +75,8 @@ export function HUD({ s, store }: { s: GameState; store: Store }) {
           <span style={{ opacity: 0.35 }}>·</span>
           <span><Key label="Space" /> Jump</span>
           <span style={{ opacity: 0.35 }}>·</span>
+          <span><Key label="R" /> Reset Cam</span>
+          <span style={{ opacity: 0.35 }}>·</span>
           <span><Key label="Esc" /> Pause</span>
         </div>
       </div>
@@ -82,7 +84,7 @@ export function HUD({ s, store }: { s: GameState; store: Store }) {
   );
 }
 
-export function PauseMenu({ store }: { store: Store }) {
+export function PauseMenu({ store, onResetCamera }: { store: Store; onResetCamera?: () => void }) {
   return (
     <div className="overlay-scrim absolute inset-0 flex items-center justify-center p-6">
       <div className="panel-cozy w-72 p-7 text-center">
@@ -90,6 +92,17 @@ export function PauseMenu({ store }: { store: Store }) {
         <p className="mt-1 text-sm text-muted-foreground">Catching your breath…</p>
         <div className="mt-6 flex flex-col gap-3">
           <button className="btn-cozy py-2.5" onClick={store.resume} autoFocus>Resume</button>
+          {onResetCamera && (
+            <button
+              className="btn-soft py-2.5"
+              onClick={() => {
+                onResetCamera();
+                store.resume();
+              }}
+            >
+              Reset Camera
+            </button>
+          )}
           <button className="btn-soft py-2.5" onClick={store.restart}>Restart</button>
         </div>
       </div>

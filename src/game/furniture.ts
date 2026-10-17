@@ -199,11 +199,9 @@ export async function loadFurniture(
     -6.80, -3.40, Math.PI, 2.5,
     -7.41, -2.89, 1.225, 1.025);
 
-  // Living Room Rug (rugRectangle.glb) — frames sofa, table, and armchair suite
-  // Native: 1.57x0.92, scale=3.8 → 5.97(X) x 3.50(Z).
-  // Spans X[-10.58, -4.62], Z[-6.25, -2.75].
+  // Living Room Rug (rugRectangle.glb) — frames sofa, table, and armchair suite (clear of south wall entrance corridor)
   await add(FURN + "rugRectangle.glb",
-    -10.58, -6.25, 0, 3.8,
+    -10.58, -4.80, 0, 3.2,
     0, 0, 0, 0);
 
   // Floor lamp — living room corner lighting

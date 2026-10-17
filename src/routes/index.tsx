@@ -31,7 +31,7 @@ function Game() {
       {s.phase === "title" && <TitleScreen store={store} />}
       {(s.phase === "playing" || s.phase === "paused") && <HUD s={s} store={store} />}
       {s.phase === "playing" && <Joystick engine={engine} />}
-      {s.phase === "paused" && <PauseMenu store={store} />}
+      {s.phase === "paused" && <PauseMenu store={store} onResetCamera={() => engine?.resetCamera()} />}
       {s.phase === "complete" && <CompleteScreen store={store} />}
     </main>
   );

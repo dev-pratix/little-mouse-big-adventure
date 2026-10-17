@@ -64,7 +64,7 @@ export class Engine {
     // Reset camera with "R" key
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyR") {
-        this.follow.reset(this.mouse.pos.x, this.mouse.pos.z, this.mouse.yaw);
+        this.resetCamera();
       }
     });
 
@@ -155,6 +155,11 @@ export class Engine {
   /** Debug/test hook: current mouse position. */
   get mousePos() {
     return { ...this.mouse.pos };
+  }
+
+  /** Restores camera to default third-person view behind mouse. */
+  resetCamera() {
+    this.follow.reset(this.mouse.pos.x, this.mouse.pos.z, this.mouse.yaw);
   }
 
   dispose() {

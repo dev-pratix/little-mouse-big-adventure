@@ -1,19 +1,23 @@
-// Camera controller: orbit camera that follows the mouse but allows user-controlled orbit.
+// Camera controller: orbit camera that follows the mouse with controlled zoom and collision limits.
 import * as THREE from "three";
-import { HOLE, NOOK, ROOM } from "./world";
+import { NOOK, ROOM } from "./world";
 
-// Default distance constant (exported for possible external use)
-export const DEFAULT_DISTANCE = 3.8; // clear view of scaled mouse and room context
+// Camera distance and angle constants
+export const DEFAULT_DISTANCE = 3.0; // comfortable third-person distance behind mouse
+export const DEFAULT_PITCH = 0.40;   // ~23° above horizontal (classic platformer angle)
+export const MIN_DISTANCE = 1.4;     // minimum zoom distance (keeps mouse clearly framed)
+export const MAX_DISTANCE = 4.8;     // maximum zoom distance (prevents losing character context)
+export const MIN_PITCH = 0.10;       // ~6° (keeps camera strictly above floor)
+export const MAX_PITCH = 1.30;       // ~75° (prevents camera flip directly overhead)
 
 /**
- * FollowCamera (orbit version) – used by Engine.
- * It tracks the mouse position but the user can rotate around it with the right mouse button,
- * zoom with the wheel, and reset with the "R" key.
+ * FollowCamera – third-person gameplay camera with user orbit and controlled zoom.
+ * In default view, it follows directly behind and slightly above the mouse.
+ * The player can orbit 360° with mouse movement, zoom with wheel, and reset with 'R' or pause UI.
  */
 export class FollowCamera {
-  // user-controlled spherical coordinates
-  yaw = 0; // horizontal angle around Y axis (radians)
-  pitch = 0.45; // vertical angle from horizon (radians, ~26°)
+  yaw = 0;              // horizontal angle around Y axis (radians)
+  pitch = DEFAULT_PITCH; // vertical angle from horizon (radians)
   distance = DEFAULT_DISTANCE;
 
   private pos = new THREE.Vector3();
@@ -22,41 +26,39 @@ export class FollowCamera {
   constructor(public cam: THREE.PerspectiveCamera) {}
 
   /**
-   * Snap camera to a clear starting position.
-   * The mouse spawns inside the nook (z ≈ -10.3). yaw=0 would put the camera
-   * behind the mouse at z ≈ -12.3, inside the nook back wall.
-   * Adding π flips the camera to the room side (z ≈ -6.5), looking toward the nook.
+   * Snap camera directly to default third-person view behind the mouse.
+   * Mouse yaw=0 points North (+Z); camera sits behind (-Z), looking forward.
    */
-  snap(x: number, z: number, yaw: number) {
-    this.yaw = yaw + Math.PI; // camera on room side, looking toward mouse/nook
-    this.pitch = 0.45;        // ~26° — shows mouse + surrounding room context
+  snap(x: number, z: number, mouseYaw: number) {
+    this.yaw = mouseYaw;
+    this.pitch = DEFAULT_PITCH;
     this.distance = DEFAULT_DISTANCE;
     this.updatePosition(x, z, 0);
   }
 
-  /** Reset to default view (same as snap but using current mouse yaw). */
+  /** Reset camera to default third-person view behind mouse without interrupting gameplay. */
   reset(x: number, z: number, mouseYaw: number) {
     this.snap(x, z, mouseYaw);
   }
 
-  /** Add user‑controlled deltas – called from input handlers. */
+  /** Add user-controlled orbit around Y axis. */
   addYaw(delta: number) {
     this.yaw = (this.yaw + delta) % (2 * Math.PI);
   }
+
+  /** Add user-controlled vertical angle (clamped so camera never goes below floor or inverts). */
   addPitch(delta: number) {
-    const min = 0.1; // ~6°
-    const max = Math.PI / 2 - 0.1; // just below straight up
-    this.pitch = THREE.MathUtils.clamp(this.pitch + delta, min, max);
-  }
-  addDistance(delta: number) {
-    const min = 1.0;
-    const max = 6.5;
-    this.distance = THREE.MathUtils.clamp(this.distance + delta, min, max);
+    this.pitch = THREE.MathUtils.clamp(this.pitch + delta, MIN_PITCH, MAX_PITCH);
   }
 
-  /** Compute camera world position from spherical coordinates. */
+  /** Add user-controlled zoom (strictly bounded between MIN_DISTANCE and MAX_DISTANCE). */
+  addDistance(delta: number) {
+    this.distance = THREE.MathUtils.clamp(this.distance + delta, MIN_DISTANCE, MAX_DISTANCE);
+  }
+
+  /** Compute camera world position with bounds and wall-clamping. */
   private updatePosition(x: number, z: number, mouseY: number) {
-    const targetY = 0.16 + mouseY; // look slightly above floor at mouse center
+    const targetY = 0.16 + mouseY; // look at mouse body center
     this.look.set(x, targetY, z);
 
     const sinYaw = Math.sin(this.yaw);
@@ -68,7 +70,25 @@ export class FollowCamera {
     const offsetY = sinPitch * this.distance;
     const offsetZ = cosYaw * cosPitch * this.distance;
 
-    this.pos.set(x - offsetX, targetY + offsetY, z - offsetZ);
+    const idealX = x - offsetX;
+    const idealY = targetY + offsetY;
+    const idealZ = z - offsetZ;
+
+    // Boundary and collision protection:
+    // If the mouse is inside the nook, keep the camera inside the nest volume
+    if (z < ROOM.minZ) {
+      const nestCamX = THREE.MathUtils.clamp(idealX, NOOK.minX + 0.20, NOOK.maxX - 0.20);
+      const nestCamZ = Math.max(NOOK.minZ + 0.25, idealZ);
+      const nestCamY = THREE.MathUtils.clamp(idealY, 0.18, NOOK.h - 0.10);
+      this.pos.set(nestCamX, nestCamY, nestCamZ);
+    } else {
+      // Main room: keep camera inside perimeter walls and above floor
+      const roomCamX = THREE.MathUtils.clamp(idealX, ROOM.minX + 0.35, ROOM.maxX - 0.35);
+      const roomCamZ = THREE.MathUtils.clamp(idealZ, ROOM.minZ + 0.35, ROOM.maxZ - 0.35);
+      const roomCamY = Math.max(0.20, idealY);
+      this.pos.set(roomCamX, roomCamY, roomCamZ);
+    }
+
     this.cam.position.copy(this.pos);
     this.cam.lookAt(this.look);
   }
@@ -83,7 +103,6 @@ export class FollowCamera {
     _moving: boolean,
     _forwardInput: number,
   ) {
-    // The orbit parameters are driven by user input events; we just recompute position.
     this.updatePosition(x, z, mouseY);
   }
 }
