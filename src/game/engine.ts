@@ -175,7 +175,20 @@ export class Engine {
     this.renderer.setSize(w, h, false);
     this.renderer.domElement.style.width = "100%";
     this.renderer.domElement.style.height = "100%";
-    this.camera.aspect = w / h;
+    const aspect = w / h;
+    this.camera.aspect = aspect;
+
+    // Mobile portrait view: preserve horizontal field of view so it feels like widescreen horizontal view
+    // instead of cropped and cramped vertically.
+    const baseVFOV = 60;
+    const targetLandscapeAspect = 1.6;
+    if (aspect < 1.0) {
+      const targetHFOV = 2 * Math.atan(Math.tan((baseVFOV * Math.PI) / 360) * targetLandscapeAspect);
+      const portraitVFOV = (2 * Math.atan(Math.tan(targetHFOV / 2) / aspect) * 180) / Math.PI;
+      this.camera.fov = Math.min(portraitVFOV, 85);
+    } else {
+      this.camera.fov = baseVFOV;
+    }
     this.camera.updateProjectionMatrix();
   }
 

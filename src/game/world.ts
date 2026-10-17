@@ -5,7 +5,7 @@
 // nook, skirting, window, cheese spots, home marker, and all colliders.
 import * as THREE from "three";
 import { box, platform, type Box, type Platform } from "./collision";
-import { rug, wallpaper, woodFloor } from "./textures";
+import { framedArtTexture, wallpaper, woodFloor, woodFloorBump, woodFloorRoughness } from "./textures";
 
 export const ROOM = { minX: -8.0, maxX: 8.0, minZ: -6.5, maxZ: 6.5, h: 9.0 };
 export const HOLE = { x: -5.0, w: 0.40, h: 0.38 };
@@ -51,22 +51,27 @@ export function buildWorld(scene: THREE.Scene): World {
   scene.fog = new THREE.Fog("#e8d5b0", 20, 45);
 
   // ── Lights ───────────────────────────────────────────────────────────
-  const hemi = new THREE.HemisphereLight("#fff8ee", "#9c7a55", 0.9);
-  const sun = new THREE.DirectionalLight("#ffe0b0", 2.6);
+  const hemi = new THREE.HemisphereLight("#fffaf0", "#8c6b45", 0.95);
+  const sun = new THREE.DirectionalLight("#ffe4be", 2.8);
   sun.position.set(8, 16, 4);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const sc = sun.shadow.camera;
   sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.near = 1; sc.far = 40;
-  sun.shadow.bias = -0.0005;
-  sun.shadow.normalBias = 0.03;
+  sun.shadow.bias = -0.0003;
+  sun.shadow.normalBias = 0.02;
+  sun.shadow.radius = 2.0;
 
   // Warm overhead room lights for each distinct zone
   const fill = new THREE.PointLight("#ffe8cc", 1.0, 25, 1.2);
   fill.position.set(0, 5, 0);
 
-  const lightLiving = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
-  lightLiving.position.set(-4.0, 3.2, -3.25);
+  const lightLiving = new THREE.PointLight("#ffeedd", 1.1, 14, 1.2);
+  lightLiving.position.set(-4.5, 3.2, -3.8);
+
+  // Golden floor lamp accent glow in SW corner
+  const livingFloorLamp = new THREE.PointLight("#ffb86c", 0.85, 8.0, 1.4);
+  livingFloorLamp.position.set(-7.40, 1.95, -5.80);
 
   const lightLibrary = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
   lightLibrary.position.set(-4.0, 3.2, 3.25);
@@ -77,20 +82,25 @@ export function buildWorld(scene: THREE.Scene): World {
   const lightStudy = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
   lightStudy.position.set(4.0, 3.2, -3.25);
 
-  g.add(hemi, sun, fill, lightLiving, lightLibrary, lightBedroom, lightStudy);
+  g.add(hemi, sun, fill, lightLiving, livingFloorLamp, lightLibrary, lightBedroom, lightStudy);
 
-  // ── Floor (procedural — visible immediately; GLB tiles load on top) ──
-  const floor = mesh(
-    new THREE.PlaneGeometry(W, D),
-    mat("#ffffff", { map: woodFloor(), roughness: 0.6 }),
-    0, 0, 0, false,
-  );
+  // ── Floor (Scandinavian Honey Oak Hardwood Planks with PBR maps) ──
+  const floorMat = new THREE.MeshStandardMaterial({
+    map: woodFloor(),
+    bumpMap: woodFloorBump(),
+    bumpScale: 0.012,
+    roughnessMap: woodFloorRoughness(),
+    roughness: 0.52,
+    metalness: 0.02,
+  });
+  const floor = mesh(new THREE.PlaneGeometry(W, D), floorMat, 0, 0, 0, false);
   floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
   g.add(floor);
 
   // ── Outer Perimeter Walls ─────────────────────────────────────────────
   const wallTex = wallpaper();
-  const wallMat = mat("#ffffff", { map: wallTex, roughness: 0.9 });
+  const wallMat = mat("#ffffff", { map: wallTex, roughness: 0.92 });
   const side = (w: number, x: number, z: number, ry: number) => {
     const m = mesh(new THREE.PlaneGeometry(w, ROOM.h), wallMat, x, ROOM.h / 2, z, false);
     m.rotation.y = ry;
@@ -99,6 +109,16 @@ export function buildWorld(scene: THREE.Scene): World {
   side(D, ROOM.minX, 0, Math.PI / 2);
   side(D, ROOM.maxX, 0, -Math.PI / 2);
   side(W, 0, ROOM.maxZ, Math.PI);
+
+  // ── Living Room Wall Art (Framed Oil Landscape Painting on West Wall) ──
+  const artFrameM = mat("#3b2314", { roughness: 0.5, metalness: 0.05 });
+  const artCanvasM = mat("#ffffff", { map: framedArtTexture(), roughness: 0.85 });
+  // Outer frame moulding
+  g.add(mesh(new THREE.BoxGeometry(0.06, 1.10, 1.50), artFrameM, ROOM.minX + 0.03, 2.40, -3.80));
+  // Inset painted canvas
+  const artCanvas = mesh(new THREE.PlaneGeometry(1.40, 1.00), artCanvasM, ROOM.minX + 0.065, 2.40, -3.80, false);
+  artCanvas.rotation.y = Math.PI / 2;
+  g.add(artCanvas);
 
   // Back wall with discreet arched mouse-hole cutout at HOLE.x = -5.0
   const shape = new THREE.Shape();

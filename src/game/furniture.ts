@@ -23,6 +23,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { box, type Box } from "./collision";
+import { contactShadowTexture } from "./textures";
 import { ROOM } from "./world";
 
 // ── Paths (relative to public/) ──────────────────────────────────────────────
@@ -32,11 +33,60 @@ const FURN = "/assets/kenney_furniture-kit/Models/GLTF format/";
 const loaderGLTF = new GLTFLoader();
 const cache = new Map<string, THREE.Group>();
 
+/**
+ * Elevates flat Kenney materials with authentic PBR properties:
+ * - Natural satin wood finish with subtle sheen.
+ * - Soft woven fabric matte for upholstery and rugs.
+ * - Brushed and dark anodized metallic surfaces.
+ * - Glossy reflective TV screen glass.
+ * - Cozy warm translucent lampshade emissivity.
+ */
+function enhanceModelMaterials(root: THREE.Object3D) {
+  root.traverse((o) => {
+    if (o instanceof THREE.Mesh && o.material) {
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => {
+        if (m instanceof THREE.MeshStandardMaterial) {
+          const name = (m.name || "").toLowerCase();
+          if (name.includes("wood")) {
+            m.roughness = 0.46;
+            m.metalness = 0.04;
+          } else if (name.includes("carpet") || name.includes("fabric")) {
+            m.roughness = 0.88;
+            m.metalness = 0.0;
+          } else if (name.includes("metal")) {
+            if (name.includes("dark")) {
+              m.roughness = 0.18;
+              m.metalness = 0.85;
+            } else {
+              m.roughness = 0.28;
+              m.metalness = 0.80;
+            }
+          } else if (name.includes("lamp")) {
+            m.roughness = 0.55;
+            m.metalness = 0.05;
+            m.emissive = new THREE.Color("#ffeedd");
+            m.emissiveIntensity = 0.35;
+          } else if (name.includes("plant") || name.includes("leaf")) {
+            m.roughness = 0.55;
+            m.metalness = 0.0;
+          } else {
+            m.roughness = 0.65;
+            m.metalness = 0.05;
+          }
+          m.needsUpdate = true;
+        }
+      });
+    }
+  });
+}
+
 async function loadModel(url: string): Promise<THREE.Group> {
   const cached = cache.get(url);
   if (cached) return cached;
   return new Promise<THREE.Group>((resolve, reject) => {
     loaderGLTF.load(url, (gltf) => {
+      enhanceModelMaterials(gltf.scene);
       cache.set(url, gltf.scene);
       resolve(gltf.scene);
     }, undefined, reject);
@@ -116,6 +166,30 @@ export async function loadFurniture(
     }
   };
 
+  // ── Ambient Occlusion Ground Contact Shadows ─────────────────────────────
+  const shadowTex = contactShadowTexture();
+  const shadowMat = new THREE.MeshBasicMaterial({
+    map: shadowTex,
+    transparent: true,
+    opacity: 0.35,
+    depthWrite: false,
+  });
+  const addShadow = (x: number, z: number, w: number, d: number) => {
+    const geo = new THREE.PlaneGeometry(w, d);
+    const m = new THREE.Mesh(geo, shadowMat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.003, z);
+    sceneGroup.add(m);
+    groups.push(m as unknown as THREE.Group);
+  };
+
+  // Contact shadows grounding living room suite
+  addShadow(-7.545, -3.80, 0.95, 2.60);  // Under TV cabinet
+  addShadow(-3.80, -3.80, 1.45, 3.10);   // Under Sofa
+  addShadow(-5.80, -3.80, 1.25, 1.25);   // Under Coffee table
+  addShadow(-5.80, -2.19, 1.35, 1.15);   // Under Armchair
+  addShadow(-3.135, -6.065, 0.65, 0.65); // Under Cardboard box
+
   // =========================================================================
   //  LAYOUT — 4-Room Floor Plan (X: -8 left → +8 right, Z: -6.5 back → +6.5 front)
   //
@@ -160,6 +234,17 @@ export async function loadFurniture(
     -7.545, -3.80, Math.PI / 2, 3,
     0, 0, 0, 0, 0.93);
 
+  // Bookshelf Speakers & Tabletop Radio atop TV Cabinet
+  await add(FURN + "speakerSmall.glb",
+    -7.545, -4.70, Math.PI / 2, 2.4,
+    0, 0, 0, 0, 0.93);
+  await add(FURN + "speakerSmall.glb",
+    -7.545, -2.90, Math.PI / 2, 2.4,
+    0, 0, 0, 0, 0.93);
+  await add(FURN + "radio.glb",
+    -7.545, -4.35, Math.PI / 2, 2.2,
+    0, 0, 0, 0, 0.93);
+
   // Main Sofa (loungeSofa.glb) — facing West (-X) directly toward the TV
   // Native: 0.98(W) x 0.41(D), scale=3 → 2.94(Z) x 1.23(X). Height 1.38m.
   // Front of seat at X=-4.42, backrest at X=-3.19. Centered at Z=-3.80.
@@ -172,6 +257,14 @@ export async function loadFurniture(
     box(-4.30, -5.15, 0.16, 0.16), // Front-left leg
     box(-4.30, -2.45, 0.16, 0.16), // Front-right leg
   );
+
+  // Sofa Corner Throw Pillows (cozy lived-in details nested against seat armrests)
+  await add(FURN + "pillow.glb",
+    -4.10, -4.95, 0, 2.0,
+    0, 0, 0, 0, 0.46);
+  await add(FURN + "pillowBlue.glb",
+    -4.10, -2.65, 0, 2.0,
+    0, 0, 0, 0, 0.46);
 
   // Coffee Table (tableCoffeeSquare.glb) — centered between TV and sofa
   // Native: 0.40x0.40, scale=2.5 → 1.0x1.0m. Table top at Y=0.58m.
@@ -187,12 +280,25 @@ export async function loadFurniture(
     box(-5.35, -3.35, 0.10, 0.10), // Front-right leg
   );
 
+  // Coffee Table Accessories: Potted Succulent + Reading Books
+  await add(FURN + "plantSmall2.glb",
+    -5.60, -3.60, 0, 2.0,
+    0, 0, 0, 0, 0.58);
+  await add(FURN + "books.glb",
+    -6.00, -3.95, 0.4, 2.0,
+    0, 0, 0, 0, 0.58);
+
   // Armchair (loungeChair.glb) — North flank, naturally grouped with sofa & table
   // Seat faces South (-Z) directly into the coffee table and sofa suite.
   // Placed at center: X=-5.80, Z=-2.19.
   await add(FURN + "loungeChair.glb",
     -5.19, -2.70, Math.PI, 2.5,
     -5.80, -2.19, 1.225, 1.025);
+
+  // Armchair Accent Pillow
+  await add(FURN + "pillow.glb",
+    -5.80, -2.10, Math.PI, 1.8,
+    0, 0, 0, 0, 0.42);
 
   // Living Room Rug (rugRectangle.glb) — frames sofa, table, and armchair suite
   await add(FURN + "rugRectangle.glb",

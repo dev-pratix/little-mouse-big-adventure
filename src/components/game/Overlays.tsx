@@ -43,16 +43,21 @@ export function HUD({ s, store }: { s: GameState; store: Store }) {
           <p className="font-display text-base leading-tight">A Mouse's First Heist</p>
           <p className="mt-1 text-sm text-muted-foreground">{done ? "Scurry back to your mouse hole!" : "Steal three pieces of cheese."}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="panel-cozy flex items-center gap-2 px-4 py-2 font-display text-xl" aria-label="cheese counter">
-            <Cheese /> {s.cheese}/{s.total}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <div className="panel-cozy flex items-center gap-2 px-4 py-2 font-display text-xl" aria-label="cheese counter">
+              <Cheese /> {s.cheese}/{s.total}
+            </div>
+            <button className="btn-cozy pointer-events-auto h-11 w-11 rounded-full" aria-label="Pause" onClick={store.pause}>II</button>
           </div>
-          <button className="btn-cozy pointer-events-auto h-11 w-11 rounded-full" aria-label="Pause" onClick={store.pause}>II</button>
+          <div className="hidden portrait:flex sm:hidden items-center gap-1.5 px-3 py-1 rounded-full bg-black/45 backdrop-blur-md text-[0.68rem] text-amber-200/90 border border-amber-300/20 shadow">
+            <span>🔄</span> Rotate for wide view
+          </div>
         </div>
       </div>
-      {/* Controls hint — bottom-centre, unobtrusive */}
+      {/* Controls hint — desktop only, bottom-centre, unobtrusive */}
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center"
+        className="pointer-events-none absolute inset-x-0 bottom-4 hidden md:flex justify-center"
         aria-label="controls hint"
       >
         <div style={{
