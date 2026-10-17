@@ -1,27 +1,24 @@
 /**
  * furniture.ts
- * Loads Kenney GLB assets (Furniture Kit + Building Kit) and places them in the scene.
+ * Loads Kenney GLB assets and places them in the scene.
  * Returns collision boxes that merge into world.colliders.
  *
  * Design:
  *  - Each GLB is loaded once, then cloned for every placement → single HTTP fetch per model.
- *  - Furniture is arranged in a cohesive living-room layout with clear walking paths.
- *  - Collision boxes use simple axis-aligned rectangles matching visible footprints.
+ *  - Furniture is arranged in three recognisable zones: lounge, bedroom, work/storage.
  *  - Room perimeter walls are handled entirely by world.ts (PlaneGeometry + ExtrudeGeometry).
+ *  - Collision boxes use simple axis-aligned rectangles matching visible footprints.
  *
- * Kenney conventions (measured from GLB accessor min/max):
- *  - Models are in the +X/+Y/+Z octant mostly, sitting on Y=0.
- *  - bedDouble: 1.62 × 1.91 m native → scale 3 → 4.87 × 5.73 m world
- *  - loungeSofa: 0.98 × 0.41 m native → scale 3 → 2.94 × 1.23 m world
- *  - desk: 0.73 × 0.56 m native → scale 3 → 2.20 × 1.68 m world
- *  - bookcaseClosed / Open: 0.40 × 0.25 m native → scale 3 → 1.20 × 0.75 m world
- *  - tableCoffeeSquare: 0.40 × 0.40 m native → scale 2.5 → 1.0 × 1.0 m world
+ * Kenney GLB convention: the model's local origin is at ONE CORNER of its base,
+ * NOT at the geometric centre. When we call place(model, x, 0, z) the corner
+ * lands at (x, z). To centre a collider on the VISUAL footprint we must add
+ * half the world-space extent to form the AABB centre.
  *
- * The mouse is 0.13 m radius / ~0.26 m diameter. Furniture at 1:1 looks human-sized.
+ * All placements below document the expected world footprint explicitly so
+ * future edits can verify positions without loading the scene.
  *
- * Collider note: box(x, z, colW * scale, colD * scale)
- *   → colW/colD are pre-scale values in "model units" (not world units).
- *   → Pass colW = native_width, colD = native_depth; the helper multiplies by scale.
+ * Room extents (X: -12 → +12, Z: -9 → +9). Wall colliders block at |X|>=11, Z>=8, Z<=-9.
+ * Mouse hole at X=-7, Z=-9. Mouse radius = 0.13 m.
  */
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -86,25 +83,31 @@ export async function loadFurniture(
   const colliders: Box[] = [];
   const groups: THREE.Group[] = [];
 
-  // ── Helper: load → place → collider ────────────────────────────────────────
-  // colW and colD are NATIVE (pre-scale) model widths/depths.
-  // The helper multiplies them by scale to get world-space collider dimensions.
+  /**
+   * add — load model, place in scene, register collider.
+   *
+   * colCX / colCZ = WORLD-SPACE CENTRE of the visible footprint (not the placement origin).
+   * colW / colD   = WORLD-SPACE full extents (already scaled).
+   * Pass colW=0, colD=0 for purely decorative objects with no collision.
+   */
   const add = async (
     file: string,
     x: number,
     z: number,
     ry = 0,
+    scale = 1,
+    colCX = 0,
+    colCZ = 0,
     colW = 0,
     colD = 0,
-    scale = 1,
-    yOffset = 0,
+    yOff = 0,
   ) => {
     try {
       const model = await loadModel(file);
-      const g = place(sceneGroup, model, x, yOffset, z, ry, scale);
+      const g = place(sceneGroup, model, x, yOff, z, ry, scale);
       groups.push(g);
       if (colW > 0 && colD > 0) {
-        colliders.push(box(x, z, colW * scale, colD * scale));
+        colliders.push(box(colCX, colCZ, colW, colD));
       }
       return g;
     } catch (e) {
@@ -113,154 +116,225 @@ export async function loadFurniture(
     }
   };
 
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  FURNITURE — Cohesive layout for a tiny mouse in a human-sized room
+  // =========================================================================
+  //  LAYOUT — top-down (X: -12 left → +12 right, Z: -9 back → +9 front)
   //
-  //  Room top-down (X: -12 left → +12 right, Z: -9 back → +9 front)
+  //  +9 +------------------------------------------------------------------+
+  //     | CoatRack   [bookcase wall -11.75, z 1.5-7.7]  [bedroom: bed]    |
+  //     | (-10.5,7.5)                    sideTable(1.5,3.5)  bed(10,3.2)  |
+  //     |                                                   cabinet(4.5,5.5)|
+  //     |              [LOUNGE]                                             |
+  //     |  sofa(-9.5,-1.73)  coffee(-7.5,0.5)  chair(-4.5,0.5)            |
+  //   0 +------------------------------------------------------------------+
+  //     |  floorLamp(-10.5,-2.5)               desk(9.3,0.1) rot=-pi/2    |
+  //     |  TV cab(-11.75,-5.7)                 deskChair(8.0,-1.6)        |
+  //     |                                      plant(10.0,-7.5)           |
+  //     |  cardboard(-3.5,-7.5)                                            |
+  //  -9 +---------------------[mouse-hole @ X=-7]------------------------  +
   //
-  //    +9 ┌─────────────────────────────────────────────────┐
-  //       │ Bookcases  (left wall)   Bed + Cabinet (right)  │
-  //       │ (-11, 5..7)             (7, 6.5) rotated 0      │
-  //       │                                                  │
-  //       │ Floor lamp              Open walking space       │
-  //       │ (-8, 2)                                          │
-  //     0 │ Sofa (-5, 0)            Desk (9.5, -0.5)         │
-  //       │ Coffee (-5, 2.5)        Chair (7, -0.5)          │
-  //       │ Chair (-1.5, 0.5)       TV cabinet (-9, -4)      │
-  //       │                                                  │
-  //       │ Rug (0, -1)       Cardboard box (-3.5, -7.5)     │
-  //    -9 └─────────[mouse-hole @ X=-7]──────────────────────┘
-  //
-  // ═══════════════════════════════════════════════════════════════════════════
+  // =========================================================================
 
-  // ── A. LOUNGE AREA ─────────────────────────────────────────────────────────
-  //
-  // loungeSofa native bounds: X[0..0.98], Z[-0.41..0], scale 3
-  //   → World at position (-5.5, -1.5) rot=0:
-  //     X: -5.5 to -5.5 + 0.98*3 = -5.5 to -2.56  (width 2.94 m)
-  //     Z: -1.5 + (-0.41)*3 to -1.5 = -2.73 to -1.5  (depth 1.23 m, back at -2.73, front at -1.5)
-  //   Sofa FRONT edge at Z = -1.5. People on sofa face +Z (toward front wall).
-  //   Sofa center X = (-5.5 + -2.56) / 2 = -4.03
-  //   Sofa clears left wall (minX=-12) by 6.5 m. ✓  Clears back wall by 6.5+ m. ✓
-  await add(FURN + "loungeSofa.glb",  -5.5, -1.5, 0,           0.98, 0.41, 3);
+  // ── LOUNGE ZONE (left-centre, straddles Z=0) ──────────────────────────────
 
-  // Coffee table: native 0.40×0.40, scale 2.5 → 1.0×1.0 m world.
-  // Center aligned with sofa center X (-4.0), placed 1.5 m in front of sofa front edge.
-  // Sofa front at Z=-1.5, so table center at Z = -1.5 + 1.5 = 0.0
-  await add(FURN + "tableCoffeeSquare.glb", -4.0, 0.0,  0,       0.40, 0.40, 2.5);
+  // Sofa (loungeSofa.glb)
+  // Native: X[0..0.98], Z[-0.41..0]. Scale=3 → world 2.94(X) x 1.23(Z)
+  // Placed at corner: x=-9.5, z=-1.73, rot=0
+  // World footprint: X[-9.5, -6.56]  Z[-1.73, -0.50]
+  // Collider centre: cx=-8.03, cz=-1.115
+  await add(FURN + "loungeSofa.glb",
+    -9.5, -1.73, 0, 3,
+    -8.03, -1.115, 2.94, 1.23);
 
-  // Lounge chair: native 0.49×0.41, scale 2.5 → 1.22×1.02 m world.
-  // Placed to the right of the coffee table, facing the sofa (rot = Math.PI → faces -Z, toward sofa).
-  // Center at X=-1.0, Z=0.0 — same Z-level as coffee table, facing back toward sofa.
-  await add(FURN + "loungeChair.glb",  -1.0,  0.0, Math.PI,     0.49, 0.41, 2.5);
+  // Coffee table (tableCoffeeSquare.glb)
+  // Native: 0.40x0.40. Scale=2.5 → 1.0x1.0 world
+  // Placed at corner: x=-7.5, z=0.5, rot=0
+  // World footprint: X[-7.5, -6.5]  Z[0.5, 1.5]
+  // Collider centre: cx=-7.0, cz=1.0
+  await add(FURN + "tableCoffeeSquare.glb",
+    -7.5, 0.5, 0, 2.5,
+    -7.0, 1.0, 1.0, 1.0);
 
-  // ── B. RUG ─────────────────────────────────────────────────────────────────
-  // rugRectangle: decorative, no collision.
-  // Centered under the lounge group: X≈-4.0, Z between sofa back (-2.73) and table (0.0) → Z≈-1.5
-  await add(FURN + "rugRectangle.glb",  -3.5, -1.5, 0,           0,    0,    2.5);
+  // Lounge chair (loungeChair.glb) — right of coffee table, faces sofa (rot=PI)
+  // Native: X[0..0.49], Z[-0.41..0]. Scale=2.5 → 1.225(X) x 1.025(Z)
+  // At rot=PI: local +X -> world -X, local -Z -> world +Z
+  //   World X from pos: [pos.x - 1.225, pos.x]
+  //   World Z from pos: [pos.z, pos.z + 1.025]
+  // Place at x=-4.5, z=0.5 → world X[-5.725, -4.5]  Z[0.5, 1.525]
+  // Collider centre: cx=-5.1125, cz=1.0125
+  await add(FURN + "loungeChair.glb",
+    -4.5, 0.5, Math.PI, 2.5,
+    -5.1125, 1.0125, 1.225, 1.025);
 
-  // ── C. FLOOR LAMP ──────────────────────────────────────────────────────────
-  // Between bookcases and sofa — serves as a visual landmark
-  await add(FURN + "lampSquareFloor.glb", -8.0, 2.5, 0,          0.15, 0.15, 2.5);
+  // Rug under lounge (decorative, no collider)
+  await add(FURN + "rugRectangle.glb",
+    -9.5, -2.0, 0, 3,
+    0, 0, 0, 0);
 
-  // ── D. BEDROOM AREA (right side, near front/top wall) ──────────────────────
-  //
-  // bedDouble native: 1.62 × 1.91 m → scale 3 → 4.87 × 5.73 m world
-  // X origin offset: min=-0.06, max=1.56 → center at 0.75 from origin
-  // Z origin offset: min=-1.89, max=0.02 → center at -0.93 from origin
-  //
-  // We want the bed centered around X=8, against the top wall (Z near +9).
-  // At rot=0:  world X = 8 + (-0.06..1.56)*3 = 7.82..12.68 → clips right wall!
-  // Use rot=Math.PI so bed flips: X extent becomes 8 + (−1.56..0.06)*3 = 3.32..8.18
-  //   and Z extent at rot=π: 8 * (−1..0) ... need to re-examine with rotation.
-  //
-  // Simpler: rotate π so model faces -Z (headboard visible), positioned at (7, 7).
-  // At rot=π: X spans from 7-(1.62/2*3) to 7+(1.62/2*3) → roughly 7±2.43 = 4.57..9.43 ✓
-  //           Z spans from 7-(1.91/2*3) to 7+(1.91/2*3) → roughly 7±2.87 = 4.13..9.87 (clips +9!)
-  // Better: Z center at 6.0, Z span → 3.13..8.87 ✓
-  //
-  // Use rot=Math.PI, x=7.0, z=6.0
-  // Collider: 1.62 × 1.91 native, scale 3 → 4.86 × 5.73 world (centered at x,z)
-  await add(FURN + "bedDouble.glb",      7.0,  6.0, Math.PI,     1.62, 1.91, 3);
+  // Floor lamp — between bookcases and sofa
+  // Native: ~0.15x0.15. Scale=2.5 → 0.375x0.375
+  // Place at x=-10.5, z=-2.5 → world X[-10.5,-10.125]  Z[-2.5,-2.125]
+  // Collider centre: cx=-10.3125, cz=-2.3125
+  await add(FURN + "lampSquareFloor.glb",
+    -10.5, -2.5, 0, 2.5,
+    -10.3125, -2.3125, 0.375, 0.375);
 
-  // Bedside cabinet — left of bed (lower X), near headboard end
-  // cabinetBedDrawer native: 0.27 × 0.38 m → scale 2.5 → 0.67 × 0.95 m
-  // Bed left edge at ~4.57, so put cabinet center at X=4.0
-  await add(FURN + "cabinetBedDrawer.glb", 4.0, 6.0, 0,          0.27, 0.38, 2.5);
+  // ── BEDROOM ZONE (right side, front half) ─────────────────────────────────
 
-  // Lamp on bedside cabinet (yOffset to sit on top: cabinet height 0.263*2.5 ≈ 0.66 m)
-  await add(FURN + "lampRoundTable.glb",  4.0,  6.0, 0,           0,    0,    2.0, 0.66);
+  // Bed (bedDouble.glb)
+  // Native: X[-0.06..1.56], Z[-1.89..0.02]. WIDTH=1.62, DEPTH=1.91
+  // Scale=3 → 4.86(X) x 5.73(Z)
+  // At rot=PI: local +X -> world -X, local +Z -> world -Z (model is mirrored)
+  //   World X: [pos.x - 1.56*3, pos.x + 0.06*3] = [pos.x-4.68, pos.x+0.18]
+  //   World Z: [pos.z - 0.02*3, pos.z + 1.89*3] = [pos.z-0.06, pos.z+5.67]
+  // Target: headboard near front wall (z=9). Set pos.z+5.67=8.9 → pos.z=3.23 → use 3.2
+  //   X: right side of room. pos.x-4.68=5.32 → pos.x=10.0
+  //   World X: [5.32, 10.18]  Z: [3.14, 8.87]  both inside room. Wall at x=12. ✓
+  // Collider centre: cx=7.75, cz=6.005
+  await add(FURN + "bedDouble.glb",
+    10.0, 3.2, Math.PI, 3,
+    7.75, 6.005, 4.86, 5.73);
 
-  // ── E. WORK AREA (right wall, center-lower) ─────────────────────────────────
-  //
-  // desk native: 0.73 × 0.56 m → scale 3 → 2.19 × 1.68 m world
-  // Place against right wall (X near +12). At rot=-π/2 (facing left/−X):
-  //   the desk's W becomes depth from the wall, D becomes the width along the wall.
-  //   Origin at X=10.5, rotated -π/2: desk extends ~1.68 m along Z, 2.19 m into room.
-  await add(FURN + "desk.glb",           10.5, -2.0, -Math.PI/2,  0.73, 0.56, 3);
+  // Bedside cabinet (cabinetBedDrawer.glb) — left of bed
+  // Native: 0.27x0.38. Scale=2.5 → 0.675(X) x 0.95(Z), rot=0
+  // Place at x=4.5, z=5.5 → world X[4.5, 5.175]  Z[5.5, 6.45]
+  // Collider centre: cx=4.8375, cz=5.975
+  await add(FURN + "cabinetBedDrawer.glb",
+    4.5, 5.5, 0, 2.5,
+    4.8375, 5.975, 0.675, 0.95);
 
-  // Desk chair — in front of desk (toward −X from the desk)
-  // chairDesk native: 0.48 × 0.44 m → scale 2.5 → 1.19 × 1.10 m
-  // Desk extends from X=10.5 about 1.68 m into room (to X≈8.8). Chair at X=7.5.
-  await add(FURN + "chairDesk.glb",       7.5, -2.0,  Math.PI/2,  0.48, 0.44, 2.5);
+  // Lamp on bedside cabinet (decorative, no collider)
+  // Cabinet height: 0.263*2.5 = 0.66 m
+  await add(FURN + "lampRoundTable.glb",
+    4.5, 5.5, 0, 2.0,
+    0, 0, 0, 0, 0.66);
 
-  // Computer screen on desk surface
-  // desk top is at 0.384*3 ≈ 1.15 m height
-  await add(FURN + "computerScreen.glb", 10.5, -2.0, -Math.PI/2,  0,    0,    2.5, 1.15);
+  // ── WORK / STORAGE ZONE (right wall, back half) ───────────────────────────
 
-  // ── F. BOOKCASE WALL (left wall, upper area) ────────────────────────────────
-  //
-  // bookcaseClosed native: 0.40 × 0.25 m → scale 3 → 1.20 × 0.75 m world
-  // At rot=Math.PI/2 against left wall (X=-12), the model rotates:
-  //   depth (0.25 m) becomes the X extent from wall: 0.25*3 = 0.75 m from wall
-  //   width (0.40 m) becomes the Z extent: 0.40*3 = 1.20 m along wall
-  //
-  // Model origin: X[0..0.4], Z[-0.25..0]. At rot=π/2 and placed at X=-12:
-  //   effective X from wall: 0 to 0.75 → -12 to -11.25 ✓ (inside room, not clipping)
-  //
-  // Three bookcases stacked along the wall:
-  await add(FURN + "bookcaseClosed.glb", -11.5, 7.0, Math.PI/2,  0.40, 0.25, 3);
-  await add(FURN + "bookcaseOpen.glb",   -11.5, 5.0, Math.PI/2,  0.40, 0.25, 3);
-  await add(FURN + "bookcaseClosedWide.glb", -11.5, 2.5, Math.PI/2, 0.80, 0.25, 3);
+  // Desk (desk.glb)
+  // Native: X[0..0.73], Z[-0.56..0]. Scale=3
+  // At rot=-PI/2: local X → world -Z, local Z → world +X
+  //   World X: [pos.x, pos.x + 0.56*3] = [pos.x, pos.x+1.68]
+  //   World Z: [pos.z - 0.73*3, pos.z] = [pos.z-2.19, pos.z]
+  // Right wall inner at x=11. Desk maxX = pos.x+1.68 <= 11 → pos.x <= 9.32. Use 9.3.
+  // Z: pos.z=0.1 → world Z[-2.09, 0.1]
+  // Collider centre: cx=10.14, cz=-0.995
+  await add(FURN + "desk.glb",
+    9.3, 0.1, -Math.PI / 2, 3,
+    10.14, -0.995, 1.68, 2.19);
 
-  // Books — decorative, no collision, near bookcases
-  await add(FURN + "books.glb",          -10.5, 5.8, 0.3,         0,    0,    2.5);
+  // Computer screen on desk (decorative, no collider)
+  await add(FURN + "computerScreen.glb",
+    9.3, 0.1, -Math.PI / 2, 2.5,
+    0, 0, 0, 0, 1.15);
 
-  // ── G. TV / ENTERTAINMENT AREA (left wall, lower area) ─────────────────────
-  //
-  // cabinetTelevision native: 0.80 × 0.25 m → scale 3 → 2.40 × 0.75 m world
-  // Against left wall at rot=Math.PI/2 (cabinet face toward +X/room center)
-  // At X=-11.5, rot=π/2: depth (0.75 m) comes off wall → extends to X=-10.75 ✓
-  await add(FURN + "cabinetTelevision.glb", -11.5, -4.5, Math.PI/2, 0.80, 0.25, 3);
+  // Desk chair (chairDesk.glb) — in front of desk
+  // Native: X[0..0.48], Z[-0.44..0]. Scale=2.5 → 1.2(X) x 1.1(Z)
+  // At rot=PI/2: local X → world +Z, local Z → world -X
+  //   World X: [pos.x - 0.44*2.5, pos.x] = [pos.x-1.1, pos.x]
+  //   World Z: [pos.z, pos.z + 0.48*2.5] = [pos.z, pos.z+1.2]
+  // Place at x=8.0, z=-1.6 → world X[6.9, 8.0]  Z[-1.6, -0.4]
+  // Collider centre: cx=7.45, cz=-1.0
+  await add(FURN + "chairDesk.glb",
+    8.0, -1.6, Math.PI / 2, 2.5,
+    7.45, -1.0, 1.1, 1.2);
 
-  // Television on top of cabinet (cabinet height 0.31*3 ≈ 0.93 m)
-  await add(FURN + "televisionModern.glb",  -11.5, -4.5, Math.PI/2,  0,   0,    3, 0.93);
+  // ── BOOKCASE WALL (left wall, front quadrant) ─────────────────────────────
 
-  // ── H. DECORATIVE / MISC ────────────────────────────────────────────────────
+  // All bookcases at rot=PI/2 against left wall (x=-11.75).
+  // At rot=PI/2: local X → world +Z, local Z → world +X
+  //   World X: [pos.x, pos.x + depth*scale] = [-11.75, -11.0]
+  //   World Z: [pos.z, pos.z + width*scale]
+  // Wall collider inner edge is at x=-11. Bookcase maxX=-11.0 — flush with boundary. ✓
 
-  // Potted plant — right side, near back wall (doesn't crowd the doorway area)
-  await add(FURN + "pottedPlant.glb",     10.0, -7.0, 0,           0.35, 0.35, 2.5);
+  // bookcaseClosed: native 0.40x0.25, scale=3 → 1.2(Z) x 0.75(X)
+  // Place at x=-11.75, z=6.5 → world Z[6.5, 7.7]
+  // Collider centre: cx=-11.375, cz=7.1
+  await add(FURN + "bookcaseClosed.glb",
+    -11.75, 6.5, Math.PI / 2, 3,
+    -11.375, 7.1, 0.75, 1.2);
 
-  // Small plant near desk
-  await add(FURN + "plantSmall1.glb",     10.5, -4.5, 0,           0,    0,    2.0);
+  // bookcaseOpen: same native size
+  // Place at x=-11.75, z=4.5 → world Z[4.5, 5.7]
+  // Collider centre: cx=-11.375, cz=5.1
+  await add(FURN + "bookcaseOpen.glb",
+    -11.75, 4.5, Math.PI / 2, 3,
+    -11.375, 5.1, 0.75, 1.2);
+
+  // bookcaseClosedWide: native 0.80x0.25, scale=3 → 2.4(Z) x 0.75(X)
+  // Place at x=-11.75, z=1.5 → world Z[1.5, 3.9]
+  // Collider centre: cx=-11.375, cz=2.7
+  await add(FURN + "bookcaseClosedWide.glb",
+    -11.75, 1.5, Math.PI / 2, 3,
+    -11.375, 2.7, 0.75, 2.4);
+
+  // Books decoration — no collider
+  await add(FURN + "books.glb",
+    -10.8, 5.5, 0.3, 2.5,
+    0, 0, 0, 0);
+
+  // ── TV / ENTERTAINMENT (left wall, back half) ─────────────────────────────
+
+  // cabinetTelevision: native 0.80x0.25, scale=3 → 2.4(Z) x 0.75(X), rot=PI/2
+  // Place at x=-11.75, z=-5.7 → world X[-11.75,-11.0]  Z[-5.7,-3.3]
+  // Collider centre: cx=-11.375, cz=-4.5
+  await add(FURN + "cabinetTelevision.glb",
+    -11.75, -5.7, Math.PI / 2, 3,
+    -11.375, -4.5, 0.75, 2.4);
+
+  // Television on top (cabinet height: 0.31*3 = 0.93 m)
+  await add(FURN + "televisionModern.glb",
+    -11.75, -5.7, Math.PI / 2, 3,
+    0, 0, 0, 0, 0.93);
+
+  // ── DECORATIVE / PROPS ────────────────────────────────────────────────────
+
+  // Potted plant — right side, back corner
+  // Native ~0.35x0.35, scale=2.5 → 0.875x0.875
+  // Place at x=10.0, z=-7.5 → world X[10.0,10.875]  Z[-7.5,-6.625]
+  // Collider centre: cx=10.4375, cz=-7.0625
+  await add(FURN + "pottedPlant.glb",
+    10.0, -7.5, 0, 2.5,
+    10.4375, -7.0625, 0.875, 0.875);
+
+  // Small plant near desk (decorative, no collider)
+  await add(FURN + "plantSmall1.glb",
+    9.3, -2.5, 0, 2.0,
+    0, 0, 0, 0);
 
   // Trashcan near desk
-  await add(FURN + "trashcan.glb",         8.5,  0.5, 0,           0.15, 0.15, 2.0);
+  // ~0.15x0.15 native, scale=2.0 → 0.3x0.3
+  // Collider centre: cx=8.65, cz=0.65
+  await add(FURN + "trashcan.glb",
+    8.5, 0.5, 0, 2.0,
+    8.65, 0.65, 0.3, 0.3);
 
-  // Coat rack near front wall (left side)
-  await add(FURN + "coatRackStanding.glb",-10.5, 8.0, 0,           0.15, 0.15, 2.5);
+  // Coat rack — front-left corner, z=7.5 keeps it clear of front-wall collider (minZ=8)
+  // ~0.15x0.15 native, scale=2.5 → 0.375x0.375
+  // Collider centre: cx=-10.3125, cz=7.6875
+  await add(FURN + "coatRackStanding.glb",
+    -10.5, 7.5, 0, 2.5,
+    -10.3125, 7.6875, 0.375, 0.375);
 
-  // Cardboard box near mouse-hole — environmental storytelling
-  // Kept well clear of the X=-7 doorway gap.
-  // Box at (-3.5, -7.5): native ~0.43 m, scale 2.5 → 1.07 m. X: -3.5±0.53 = -4.03..-2.97 ✓
-  await add(FURN + "cardboardBoxClosed.glb", -3.5, -7.5, 0.2,      0.43, 0.43, 2.5);
+  // Cardboard box near mouse-hole (story prop; clear of doorway at x=-7)
+  // ~0.43x0.43 native, scale=2.5 → 1.075x1.075
+  // Place at x=-3.5, z=-7.5 → world X[-3.5,-2.425]  Z[-7.5,-6.425]
+  // Collider centre: cx=-2.9625, cz=-6.9625
+  await add(FURN + "cardboardBoxClosed.glb",
+    -3.5, -7.5, 0.2, 2.5,
+    -2.9625, -6.9625, 1.075, 1.075);
 
-  // Doormat near front wall entrance
-  await add(FURN + "rugDoormat.glb",       0.0,  8.3, 0,           0,    0,    2.5);
+  // Doormat near front wall (decorative, no collider)
+  await add(FURN + "rugDoormat.glb",
+    -1.0, 8.0, 0, 2.5,
+    0, 0, 0, 0);
 
-  // Side table between bedroom and lounge
-  await add(FURN + "sideTable.glb",        2.5,  3.5, 0,           0.30, 0.30, 2.5);
+  // Side table between lounge and bedroom
+  // ~0.30x0.30 native, scale=2.5 → 0.75x0.75
+  // Place at x=1.5, z=3.5 → world X[1.5,2.25]  Z[3.5,4.25]
+  // Collider centre: cx=1.875, cz=3.875
+  await add(FURN + "sideTable.glb",
+    1.5, 3.5, 0, 2.5,
+    1.875, 3.875, 0.75, 0.75);
 
   return {
     colliders,

@@ -12,9 +12,9 @@ export const HOLE = { x: -7, w: 0.9, h: 0.9 };
 export const NOOK = { minX: -8.3, maxX: -5.7, minZ: -11.6, maxZ: -9.3, h: 1.4 };
 export const START = { x: -7, z: -10.3, yaw: 0 };
 export const CHEESE_SPOTS: [number, number][] = [
-  [7.5, -1.0], // under the desk
-  [9.5, -6.5], // beside the TV cabinet / bookcase
-  [-9.0, 7.0], // behind the potted plant corner
+  [6.0, -1.0], // beside the study desk
+  [9.5, -6.5], // near the potted plant
+  [-9.0, 7.0], // near the bookcase corner
 ];
 
 export function isHome(x: number, z: number) {
@@ -192,14 +192,17 @@ export function buildWorld(scene: THREE.Scene): World {
     });
 
   // ── Rug ───────────────────────────────────────────────────────────────
-  // Keep the procedural rug for immediate visual feedback; Kenney rugRectangle loads on top
+  // Procedural rug: immediate visual feedback under lounge zone until GLB loads.
+  // Lounge sofa: X[-9.5,-6.56], coffee table X[-7.5,-6.5], chair X[-5.7,-4.5]
+  // Rug centre at X=-7.0, Z=-0.5 spans the group.
   const rg = mesh(
-    new THREE.PlaneGeometry(9, 6),
+    new THREE.PlaneGeometry(8, 5),
     mat("#ffffff", { map: rug(), roughness: 1 }),
-    0, 0.01, -1.5, false,
+    -7.0, 0.01, -0.5, false,
   );
   rg.rotation.x = -Math.PI / 2;
   g.add(rg);
+
 
   // ── Mouse home (nook behind the arched hole) ──────────────────────────
   const n = NOOK;
