@@ -194,12 +194,11 @@ export function buildWorld(scene: THREE.Scene): World {
 
   // ── Rug ───────────────────────────────────────────────────────────────
   // Procedural rug: immediate visual feedback under lounge zone until GLB loads.
-  // Lounge sofa: X[-9.5,-6.56], coffee table X[-7.5,-6.5], chair X[-5.7,-4.5]
-  // Rug centre at X=-7.0, Z=-0.5 spans the group.
+  // Centered under sofa and coffee table: X=-6.80, Z=-1.40, size 5x3.2m
   const rg = mesh(
-    new THREE.PlaneGeometry(8, 5),
+    new THREE.PlaneGeometry(5.0, 3.2),
     mat("#ffffff", { map: rug(), roughness: 1 }),
-    -7.0, 0.01, -0.5, false,
+    -6.80, 0.01, -1.40, false,
   );
   rg.rotation.x = -Math.PI / 2;
   g.add(rg);
