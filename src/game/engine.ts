@@ -93,6 +93,7 @@ export class Engine {
 
     if (s.phase === "playing") {
       console.log('frame colliders count', this.world.colliders.length);
+      this.input.read(this.move);
       this.mouse.update(dt, this.move, this.follow.yaw, this.world.colliders, this.world.platforms);
       const got = this.cheese.update(dt, t, this.mouse.pos.x, this.mouse.pos.z);
       for (let i = 0; i < got; i++) this.store.collect();
