@@ -7,14 +7,14 @@ import * as THREE from "three";
 import { box, platform, type Box, type Platform } from "./collision";
 import { rug, wallpaper, woodFloor } from "./textures";
 
-export const ROOM = { minX: -12, maxX: 12, minZ: -9, maxZ: 9, h: 9 };
-export const HOLE = { x: -7, w: 0.9, h: 0.9 };
-export const NOOK = { minX: -8.3, maxX: -5.7, minZ: -11.6, maxZ: -9.3, h: 1.4 };
-export const START = { x: -7, z: -10.3, yaw: 0 };
+export const ROOM = { minX: -8.0, maxX: 8.0, minZ: -6.5, maxZ: 6.5, h: 9.0 };
+export const HOLE = { x: -5.0, w: 0.9, h: 0.9 };
+export const NOOK = { minX: -6.3, maxX: -3.7, minZ: -8.8, maxZ: -6.8, h: 1.4 };
+export const START = { x: -5.0, z: -7.8, yaw: 0 };
 export const CHEESE_SPOTS: [number, number][] = [
-  [6.0, -1.0], // beside the study desk
-  [9.5, -6.5], // near the potted plant
-  [-9.0, 7.0], // near the bookcase corner
+  [4.50, -2.40], // Study beside desk
+  [5.50, -5.50], // Study corner plant
+  [-6.00, 5.00], // Library reading corner
 ];
 
 export function isHome(x: number, z: number) {
@@ -44,26 +44,40 @@ export function buildWorld(scene: THREE.Scene): World {
   const g = new THREE.Group();
   const colliders: Box[] = [];
   const platforms: Platform[] = [];
-  const W = ROOM.maxX - ROOM.minX;
-  const D = ROOM.maxZ - ROOM.minZ;
+  const W = ROOM.maxX - ROOM.minX; // 16.0m
+  const D = ROOM.maxZ - ROOM.minZ; // 13.0m
 
   scene.background = new THREE.Color("#e8d5b0");
-  scene.fog = new THREE.Fog("#e8d5b0", 24, 52);
+  scene.fog = new THREE.Fog("#e8d5b0", 20, 45);
 
   // ── Lights ───────────────────────────────────────────────────────────
   const hemi = new THREE.HemisphereLight("#fff8ee", "#9c7a55", 0.9);
-  const sun = new THREE.DirectionalLight("#ffe0b0", 2.8);
+  const sun = new THREE.DirectionalLight("#ffe0b0", 2.6);
   sun.position.set(8, 16, 4);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const sc = sun.shadow.camera;
-  sc.left = -18; sc.right = 18; sc.top = 18; sc.bottom = -18; sc.near = 1; sc.far = 45;
+  sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.near = 1; sc.far = 40;
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.03;
-  // Warm fill from above (like a ceiling lamp)
-  const fill = new THREE.PointLight("#ffe8cc", 1.2, 30, 1.2);
-  fill.position.set(0, 8, 0);
-  g.add(hemi, sun, fill);
+
+  // Warm overhead room lights for each distinct zone
+  const fill = new THREE.PointLight("#ffe8cc", 1.0, 25, 1.2);
+  fill.position.set(0, 5, 0);
+
+  const lightLiving = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
+  lightLiving.position.set(-4.0, 3.2, -3.25);
+
+  const lightLibrary = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
+  lightLibrary.position.set(-4.0, 3.2, 3.25);
+
+  const lightBedroom = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
+  lightBedroom.position.set(4.0, 3.2, 3.25);
+
+  const lightStudy = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
+  lightStudy.position.set(4.0, 3.2, -3.25);
+
+  g.add(hemi, sun, fill, lightLiving, lightLibrary, lightBedroom, lightStudy);
 
   // ── Floor (procedural — visible immediately; GLB tiles load on top) ──
   const floor = mesh(
@@ -74,7 +88,7 @@ export function buildWorld(scene: THREE.Scene): World {
   floor.rotation.x = -Math.PI / 2;
   g.add(floor);
 
-  // ── Walls ─────────────────────────────────────────────────────────────
+  // ── Outer Perimeter Walls ─────────────────────────────────────────────
   const wallTex = wallpaper();
   const wallMat = mat("#ffffff", { map: wallTex, roughness: 0.9 });
   const side = (w: number, x: number, z: number, ry: number) => {
@@ -86,14 +100,14 @@ export function buildWorld(scene: THREE.Scene): World {
   side(D, ROOM.maxX, 0, -Math.PI / 2);
   side(W, 0, ROOM.maxZ, Math.PI);
 
-  // Back wall with arched mouse-hole cutout
+  // Back wall with arched mouse-hole cutout at HOLE.x = -5.0
   const shape = new THREE.Shape();
   shape.moveTo(ROOM.minX, 0);
   shape.lineTo(ROOM.maxX, 0);
   shape.lineTo(ROOM.maxX, ROOM.h);
   shape.lineTo(ROOM.minX, ROOM.h);
   shape.closePath();
-  const r = HOLE.w / 2;
+  const r = HOLE.w / 2; // 0.45m
   const hole = new THREE.Path();
   hole.moveTo(HOLE.x - r, 0);
   hole.lineTo(HOLE.x - r, HOLE.h - r);
@@ -126,33 +140,122 @@ export function buildWorld(scene: THREE.Scene): World {
     ));
   }
 
-  // Skirting boards
+  // Outer skirting boards
   const skirt = mat("#f5ead6");
   g.add(mesh(new THREE.BoxGeometry(W, 0.35, 0.08), skirt, 0, 0.175, ROOM.maxZ - 0.04));
   g.add(mesh(new THREE.BoxGeometry(HOLE.x - r - ROOM.minX, 0.35, 0.08), skirt, (ROOM.minX + HOLE.x - r) / 2, 0.175, ROOM.minZ + 0.04));
-  g.add(mesh(new THREE.BoxGeometry(ROOM.maxX - HOLE.x - r, 0.35, 0.08), skirt, (ROOM.maxX + HOLE.x + r) / 2, 0.175, ROOM.minZ + 0.04));
+  g.add(mesh(new THREE.BoxGeometry(ROOM.maxX - (HOLE.x + r), 0.35, 0.08), skirt, (ROOM.maxX + HOLE.x + r) / 2, 0.175, ROOM.minZ + 0.04));
   g.add(mesh(new THREE.BoxGeometry(0.08, 0.35, D), skirt, ROOM.minX + 0.04, 0.175, 0));
   g.add(mesh(new THREE.BoxGeometry(0.08, 0.35, D), skirt, ROOM.maxX - 0.04, 0.175, 0));
 
-  // Window (right wall)
+  // Bedroom Window (East wall at Z = 3.5)
   const win = mesh(
-    new THREE.PlaneGeometry(5, 4),
+    new THREE.PlaneGeometry(3.6, 3.2),
     new THREE.MeshBasicMaterial({ color: "#e8f4ff" }),
-    ROOM.maxX - 0.02, 5.5, 1, false,
+    ROOM.maxX - 0.02, 4.5, 3.5, false,
   );
   win.rotation.y = -Math.PI / 2;
   g.add(win);
   const frameM = mat("#fbf3e4");
-  g.add(mesh(new THREE.BoxGeometry(0.15, 0.15, 5.2), frameM, ROOM.maxX - 0.05, 5.5, 1));
-  g.add(mesh(new THREE.BoxGeometry(0.15, 4.2, 0.15), frameM, ROOM.maxX - 0.05, 5.5, 1));
-  // Sunlight ray effect through window
+  g.add(mesh(new THREE.BoxGeometry(0.15, 0.15, 3.8), frameM, ROOM.maxX - 0.05, 4.5, 3.5));
+  g.add(mesh(new THREE.BoxGeometry(0.15, 3.4, 0.15), frameM, ROOM.maxX - 0.05, 4.5, 3.5));
+  // Sunlight ray effect through bedroom window
   const sunShaft = new THREE.SpotLight("#fff3dd", 1.5, 20, Math.PI / 8, 0.7, 1.5);
-  sunShaft.position.set(ROOM.maxX - 0.5, 5.5, 1);
-  sunShaft.target.position.set(4, 0, 1);
+  sunShaft.position.set(ROOM.maxX - 0.5, 4.5, 3.5);
+  sunShaft.target.position.set(4, 0, 3.5);
   g.add(sunShaft, sunShaft.target);
 
-  // ── Room wall colliders ───────────────────────────────────────────────
-  // Wall colliders aligned with actual visible walls and skirting boards (0.08m thickness)
+  // ── Internal Partition Walls & Human Doorways ─────────────────────────
+  // Architecture: 4 distinct rooms divided by 2.80m tall walls with 2.20m wide human doorways.
+  // Central spine wall along X = 0 (Z from -6.5 to +6.5)
+  // Cross dividing wall along Z = 0 (X from -8.0 to +8.0)
+  const H_WALL = 2.80;
+  const T_WALL = 0.16; // wall thickness (colliders match +/- 0.10 including skirting)
+  const H_DOOR = 2.50; // human doorway clear height
+  const doorTrimM = mat("#7c4e2d"); // warm wood door casing
+  const crownM = mat("#f5ead6"); // crown molding on partition top
+
+  // Helper for adding partition wall segments with baseboards on both faces
+  const addWallZ = (zMin: number, zMax: number) => {
+    const len = zMax - zMin;
+    const zMid = (zMin + zMax) / 2;
+    // Solid wall box
+    g.add(mesh(new THREE.BoxGeometry(T_WALL, H_WALL, len), wallMat, 0, H_WALL / 2, zMid));
+    // Skirting boards on West face (X = -0.09) and East face (X = +0.09)
+    g.add(mesh(new THREE.BoxGeometry(0.02, 0.35, len), skirt, -0.09, 0.175, zMid));
+    g.add(mesh(new THREE.BoxGeometry(0.02, 0.35, len), skirt, 0.09, 0.175, zMid));
+    // Collider
+    colliders.push({ minX: -0.10, maxX: 0.10, minZ: zMin, maxZ: zMax });
+  };
+
+  const addWallX = (xMin: number, xMax: number) => {
+    const len = xMax - xMin;
+    const xMid = (xMin + xMax) / 2;
+    // Solid wall box
+    g.add(mesh(new THREE.BoxGeometry(len, H_WALL, T_WALL), wallMat, xMid, H_WALL / 2, 0));
+    // Skirting boards on South face (Z = -0.09) and North face (Z = +0.09)
+    g.add(mesh(new THREE.BoxGeometry(len, 0.35, 0.02), skirt, xMid, 0.175, -0.09));
+    g.add(mesh(new THREE.BoxGeometry(len, 0.35, 0.02), skirt, xMid, 0.175, 0.09));
+    // Collider
+    colliders.push({ minX: xMin, maxX: xMax, minZ: -0.10, maxZ: 0.10 });
+  };
+
+  // Doorway lintel & trim builders (openings are completely clear at floor level for mouse/human)
+  const addDoorwayZ = (zMin: number, zMax: number) => {
+    const len = zMax - zMin;
+    const zMid = (zMin + zMax) / 2;
+    const lintelH = H_WALL - H_DOOR;
+    // Wall lintel above doorway (Y from 2.50 to 2.80)
+    g.add(mesh(new THREE.BoxGeometry(T_WALL, lintelH, len), wallMat, 0, H_DOOR + lintelH / 2, zMid));
+    // Architectural door casing
+    g.add(mesh(new THREE.BoxGeometry(0.20, 0.08, len + 0.08), doorTrimM, 0, H_DOOR - 0.04, zMid));
+    g.add(mesh(new THREE.BoxGeometry(0.20, H_DOOR, 0.06), doorTrimM, 0, H_DOOR / 2, zMin + 0.03));
+    g.add(mesh(new THREE.BoxGeometry(0.20, H_DOOR, 0.06), doorTrimM, 0, H_DOOR / 2, zMax - 0.03));
+  };
+
+  const addDoorwayX = (xMin: number, xMax: number) => {
+    const len = xMax - xMin;
+    const xMid = (xMin + xMax) / 2;
+    const lintelH = H_WALL - H_DOOR;
+    // Wall lintel above doorway (Y from 2.50 to 2.80)
+    g.add(mesh(new THREE.BoxGeometry(len, lintelH, T_WALL), wallMat, xMid, H_DOOR + lintelH / 2, 0));
+    // Architectural door casing
+    g.add(mesh(new THREE.BoxGeometry(len + 0.08, 0.08, 0.20), doorTrimM, xMid, H_DOOR - 0.04, 0));
+    g.add(mesh(new THREE.BoxGeometry(0.06, H_DOOR, 0.20), doorTrimM, xMin + 0.03, H_DOOR / 2, 0));
+    g.add(mesh(new THREE.BoxGeometry(0.06, H_DOOR, 0.20), doorTrimM, xMax - 0.03, H_DOOR / 2, 0));
+  };
+
+  // A. Central Spine Wall along X = 0 (Z: -6.50 -> +6.50)
+  // Segment C1: South boundary to Doorway 1
+  addWallZ(-6.50, -2.50);
+  // Doorway 1 (Living Room <-> Study): Z from -2.50 to -0.30 (2.20m wide)
+  addDoorwayZ(-2.50, -0.30);
+  // Segment C2: Doorway 1 to Doorway 4
+  addWallZ(-0.30, 2.30);
+  // Doorway 4 (Library <-> Bedroom): Z from 2.30 to 4.50 (2.20m wide)
+  addDoorwayZ(2.30, 4.50);
+  // Segment C3: Doorway 4 to North boundary
+  addWallZ(4.50, 6.50);
+
+  // B. Cross Dividing Wall along Z = 0 (X: -8.00 -> +8.00)
+  // Segment W1: West outer wall to Doorway 2
+  addWallX(-8.00, -4.50);
+  // Doorway 2 (Living Room <-> Library): X from -4.50 to -2.30 (2.20m wide)
+  addDoorwayX(-4.50, -2.30);
+  // Segment W2: Doorway 2 to Central Wall
+  addWallX(-2.30, -0.10);
+  // Segment E1: Central Wall to Doorway 3
+  addWallX(0.10, 1.80);
+  // Doorway 3 (Study <-> Bedroom): X from 1.80 to 4.00 (2.20m wide)
+  addDoorwayX(1.80, 4.00);
+  // Segment E2: Doorway 3 to East outer wall
+  addWallX(4.00, 8.00);
+
+  // Partition Wall Crown Capping (crisp architectural trim along top at Y = 2.80m)
+  g.add(mesh(new THREE.BoxGeometry(0.20, 0.05, D), crownM, 0, H_WALL + 0.025, 0));
+  g.add(mesh(new THREE.BoxGeometry(W, 0.05, 0.20), crownM, 0, H_WALL + 0.025, 0));
+
+  // ── Outer room wall colliders ─────────────────────────────────────────
   const doorHalf = HOLE.w / 2;
   const gapMargin = 0.05;
   const skirtT = 0.08;
@@ -193,16 +296,15 @@ export function buildWorld(scene: THREE.Scene): World {
   });
 
   // ── Rug ───────────────────────────────────────────────────────────────
-  // Procedural rug: immediate visual feedback under living room suite until GLB loads.
-  // Centered under sofa, table, and armchair: X=-7.60, Z=-4.50, size 5.97x3.50m
+  // Procedural rug: immediate visual feedback under Living Room suite
+  // Centered in SW Living Room at X = -4.50, Z = -3.80, size 4.2m x 3.2m
   const rg = mesh(
-    new THREE.PlaneGeometry(5.97, 3.50),
+    new THREE.PlaneGeometry(4.20, 3.20),
     mat("#ffffff", { map: rug(), roughness: 1 }),
-    -7.60, 0.01, -4.50, false,
+    -4.50, 0.01, -3.80, false,
   );
   rg.rotation.x = -Math.PI / 2;
   g.add(rg);
-
 
   // ── Mouse home (nook behind the arched hole) ──────────────────────────
   const n = NOOK;
@@ -222,7 +324,7 @@ export function buildWorld(scene: THREE.Scene): World {
   const nfloor = mesh(
     new THREE.PlaneGeometry(nw, nd),
     mat("#9e6b44"),
-    (n.minX + n.maxX) / 2, 0.005, (n.minZ + n.maxZ) / 2, false,
+    ncx, 0.005, ncz, false,
   );
   nfloor.rotation.x = -Math.PI / 2;
   g.add(nfloor);
@@ -233,34 +335,34 @@ export function buildWorld(scene: THREE.Scene): World {
   );
 
   // Matchbox bed (mouse-scale furniture in the nook)
-  g.add(mesh(new THREE.BoxGeometry(0.75, 0.18, 0.45), mat("#d8473b"), -7.85, 0.09, -11.15));
-  g.add(mesh(new THREE.BoxGeometry(0.7, 0.06, 0.4), mat("#f1d9a6"), -7.85, 0.21, -11.15));
-  g.add(mesh(new THREE.BoxGeometry(0.2, 0.08, 0.3), mat("#ffffff"), -8.1, 0.27, -11.15));
-  colliders.push(box(-7.85, -11.15, 0.75, 0.45));
+  g.add(mesh(new THREE.BoxGeometry(0.75, 0.18, 0.45), mat("#d8473b"), -5.85, 0.09, -8.35));
+  g.add(mesh(new THREE.BoxGeometry(0.7, 0.06, 0.4), mat("#f1d9a6"), -5.85, 0.21, -8.35));
+  g.add(mesh(new THREE.BoxGeometry(0.2, 0.08, 0.3), mat("#ffffff"), -6.1, 0.27, -8.35));
+  colliders.push(box(-5.85, -8.35, 0.75, 0.45));
 
   // Spool table
-  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16), mat("#d9b07a"), -6.4, 0.3, -11.0));
-  g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.26, 12), mat("#5b88a8"), -6.4, 0.15, -11.0));
-  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16), mat("#d9b07a"), -6.4, 0.02, -11.0));
-  colliders.push(box(-6.4, -11.0, 0.4, 0.4));
+  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16), mat("#d9b07a"), -4.4, 0.3, -8.2));
+  g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.26, 12), mat("#5b88a8"), -4.4, 0.15, -8.2));
+  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16), mat("#d9b07a"), -4.4, 0.02, -8.2));
+  colliders.push(box(-4.4, -8.2, 0.4, 0.4));
 
   // Bottle-cap stool
-  g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.07, 14), mat("#c9302c", { metalness: 0.5, roughness: 0.4 }), -6.75, 0.035, -10.6));
+  g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.07, 14), mat("#c9302c", { metalness: 0.5, roughness: 0.4 }), -4.75, 0.035, -7.8));
 
   // Thimble lamp
-  g.add(mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.14, 12), mat("#c0c0c0", { metalness: 0.7, roughness: 0.3 }), -6.1, 0.07, -11.35));
-  g.add(mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffd27a" }), -6.1, 0.2, -11.35, false));
+  g.add(mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.14, 12), mat("#c0c0c0", { metalness: 0.7, roughness: 0.3 }), -4.1, 0.07, -8.55));
+  g.add(mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffd27a" }), -4.1, 0.2, -8.55, false));
   const lamp = new THREE.PointLight("#ffbf66", 2.2, 3.2, 1.5);
-  lamp.position.set(-6.4, 0.6, -10.6);
+  lamp.position.set(-4.4, 0.6, -7.8);
   g.add(lamp);
 
   // Food storage
-  g.add(mesh(new THREE.SphereGeometry(0.12, 12, 10), mat("#8c5a2b"), -5.95, 0.1, -10.0));
-  g.add(mesh(new THREE.SphereGeometry(0.1, 12, 10), mat("#a06a35"), -6.05, 0.08, -9.75));
-  const sack = mesh(new THREE.SphereGeometry(0.16, 12, 10), mat("#cbb08a", { roughness: 1 }), -8.05, 0.14, -9.85);
+  g.add(mesh(new THREE.SphereGeometry(0.12, 12, 10), mat("#8c5a2b"), -3.95, 0.1, -7.2));
+  g.add(mesh(new THREE.SphereGeometry(0.1, 12, 10), mat("#a06a35"), -4.05, 0.08, -6.95));
+  const sack = mesh(new THREE.SphereGeometry(0.16, 12, 10), mat("#cbb08a", { roughness: 1 }), -6.05, 0.14, -7.05);
   sack.scale.y = 1.2;
   g.add(sack);
-  colliders.push(box(-6.0, -9.9, 0.3, 0.5), box(-8.05, -9.85, 0.3, 0.3));
+  colliders.push(box(-4.0, -7.05, 0.3, 0.4), box(-6.05, -7.05, 0.3, 0.3));
 
   // ── Home marker ────────────────────────────────────────────────────────
   const homeMarker = new THREE.Mesh(
