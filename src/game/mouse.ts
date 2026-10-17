@@ -75,6 +75,11 @@ export class MouseController {
 
   private phase = 0;
 
+  headYaw = 0;
+  headPitch = 0;
+  private targetHeadYaw = 0;
+  private targetHeadPitch = 0;
+
   constructor(scene: THREE.Scene) {
     this.root.scale.setScalar(MOUSE.scale);
     scene.add(this.root);
@@ -87,7 +92,67 @@ export class MouseController {
     this.vel.x = this.vel.y = this.vel.z = 0;
     this.yaw = yaw;
     this.grounded = true;
+    this.headYaw = 0;
+    this.headPitch = 0;
+    this.targetHeadYaw = 0;
+    this.targetHeadPitch = 0;
+    this.model.head.rotation.set(0, 0, 0);
     this.sync();
+  }
+
+  /**
+   * Set target in world coordinates where the head should look.
+   * Head yaw and pitch are smoothly interpolated in update().
+   */
+  setLookTarget(worldX: number, worldY: number, worldZ: number) {
+    const headY = this.pos.y + 0.14 * MOUSE.scale;
+    const dx = worldX - this.pos.x;
+    const dy = worldY - headY;
+    const dz = worldZ - this.pos.z;
+    const dist = Math.hypot(dx, dz);
+
+    // If target is too close to body center (< 0.20m), return head to neutral
+    if (dist < 0.20) {
+      this.targetHeadYaw = 0;
+      this.targetHeadPitch = 0;
+      return;
+    }
+
+    // World angle from +Z
+    const worldYaw = Math.atan2(dx, dz);
+    const dYaw = Math.atan2(Math.sin(worldYaw - this.yaw), Math.cos(worldYaw - this.yaw));
+    const absYaw = Math.abs(dYaw);
+    const signYaw = Math.sign(dYaw);
+
+    const MAX_HEAD_YAW = 0.95; // ~55° natural neck limit
+    if (absYaw < 0.05) {
+      // Forward neutral deadzone
+      this.targetHeadYaw = 0;
+    } else if (absYaw <= MAX_HEAD_YAW) {
+      this.targetHeadYaw = dYaw;
+    } else if (absYaw <= Math.PI / 2) {
+      this.targetHeadYaw = signYaw * MAX_HEAD_YAW;
+    } else if (absYaw <= (3 * Math.PI) / 4) {
+      // Smoothly blend down to 0 when cursor is in rear quarter
+      const t = ((3 * Math.PI) / 4 - absYaw) / (Math.PI / 4);
+      this.targetHeadYaw = signYaw * MAX_HEAD_YAW * t;
+    } else {
+      this.targetHeadYaw = 0;
+    }
+
+    // Pitch: positive dy means target is above head -> tilt up (negative rotation around local X)
+    const pitch = -Math.atan2(dy, dist);
+    const MAX_HEAD_PITCH = 0.35; // ~20° up/down
+    if (Math.abs(pitch) < 0.04) {
+      this.targetHeadPitch = 0;
+    } else {
+      this.targetHeadPitch = THREE.MathUtils.clamp(pitch, -MAX_HEAD_PITCH, MAX_HEAD_PITCH);
+    }
+  }
+
+  clearLookTarget() {
+    this.targetHeadYaw = 0;
+    this.targetHeadPitch = 0;
   }
 
   get speed() {
@@ -173,6 +238,11 @@ export class MouseController {
       this.yaw += d * (1 - Math.exp(-MOUSE.turn * dt));
     }
 
+    // ── Head tracking smoothing ───────────────────────────────────────────
+    const headSmooth = 1 - Math.exp(-12 * dt);
+    this.headYaw += (this.targetHeadYaw - this.headYaw) * headSmooth;
+    this.headPitch += (this.targetHeadPitch - this.headPitch) * headSmooth;
+
     // ── Procedural walk cycle ─────────────────────────────────────────────
     this.phase += dt * (6 + sp * 9);
     const amt = Math.min(1, sp / MOUSE.walk);
@@ -186,7 +256,11 @@ export class MouseController {
     }
     m.feet.forEach((f, i) => (f.position.z = (i < 2 ? 0.08 : -0.08) + Math.sin(this.phase + (i % 2 === (i < 2 ? 0 : 1) ? 0 : Math.PI)) * 0.03 * amt));
     m.tail.rotation.y = Math.sin(this.phase * 0.5) * (0.25 + 0.3 * amt);
-    m.head.rotation.x = Math.sin(this.phase * 0.25) * 0.05 * (1 - amt);
+
+    // Head yaw from cursor tracking; head pitch combines cursor tracking + subtle idle nod
+    const idleNod = Math.sin(this.phase * 0.25) * 0.05 * (1 - amt);
+    m.head.rotation.y = this.headYaw;
+    m.head.rotation.x = this.headPitch + idleNod;
 
     this.sync();
   }

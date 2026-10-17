@@ -4,7 +4,7 @@ import { CheeseField } from "./cheese";
 import { FollowCamera } from "./camera";
 import { Input } from "./input";
 import { loadFurniture, type FurnitureResult } from "./furniture";
-import { MouseController } from "./mouse";
+import { MouseController, MOUSE } from "./mouse";
 import type { Store } from "./state";
 import { buildWorld, CHEESE_SPOTS, isHome, START } from "./world";
 
@@ -28,6 +28,23 @@ export class Engine {
   /** Furniture loaded async; colliders merged once resolved. */
   private furnitureResult: FurnitureResult | null = null;
 
+  // Cursor tracking for mouse head look
+  private raycaster = new THREE.Raycaster();
+  private cursorNDC = new THREE.Vector2();
+  private hasCursor = false;
+  private headPlane = new THREE.Plane();
+  private targetLookPos = new THREE.Vector3();
+  private readonly upVector = new THREE.Vector3(0, 1, 0);
+
+  // Event listener references for clean disposal
+  private onPointerMove: (e: PointerEvent) => void;
+  private onPointerLeave: () => void;
+  private onCanvasClick: () => void;
+  private onPointerLockChange: () => void;
+  private onMouseMove: (e: MouseEvent) => void;
+  private onWheel: (e: WheelEvent) => void;
+  private onKeyDown: (e: KeyboardEvent) => void;
+
   constructor(private host: HTMLElement, private store: Store) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -39,34 +56,75 @@ export class Engine {
 
     // ----- Pointer‑lock / mouse‑look handling -----
     // Click the canvas to request pointer lock
-    this.renderer.domElement.addEventListener("click", () => {
+    this.onCanvasClick = () => {
       this.renderer.domElement.requestPointerLock();
-    });
+    };
+    this.renderer.domElement.addEventListener("click", this.onCanvasClick);
+
     // Pointer‑lock change events
-    document.addEventListener("pointerlockchange", () => {
+    this.onPointerLockChange = () => {
       this.pointerLocked = document.pointerLockElement === this.renderer.domElement;
-    });
+      if (this.pointerLocked) {
+        this.hasCursor = false;
+        this.mouse.clearLookTarget();
+      }
+    };
+    document.addEventListener("pointerlockchange", this.onPointerLockChange);
+
     document.addEventListener("pointerlockerror", () => {
       console.warn("[engine] pointer lock error");
     });
+
     // Mouse movement while locked controls camera orientation
-    document.addEventListener("mousemove", (e) => {
+    this.onMouseMove = (e: MouseEvent) => {
       if (!this.pointerLocked) return;
       // Sensitivity factors – tweak as needed
       this.follow.addYaw(-e.movementX * 0.003);
       this.follow.addPitch(-e.movementY * 0.003);
-    });
+    };
+    document.addEventListener("mousemove", this.onMouseMove);
+
     // Wheel to zoom (works both locked or not)
-    this.renderer.domElement.addEventListener("wheel", (e) => {
+    this.onWheel = (e: WheelEvent) => {
       e.preventDefault();
       this.follow.addDistance(e.deltaY * 0.01);
-    });
+    };
+    this.renderer.domElement.addEventListener("wheel", this.onWheel);
+
     // Reset camera with "R" key
-    window.addEventListener("keydown", (e) => {
+    this.onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "KeyR") {
         this.resetCamera();
       }
-    });
+    };
+    window.addEventListener("keydown", this.onKeyDown);
+
+    // Cursor tracking for mouse head look (when not pointer locked)
+    this.onPointerMove = (e: PointerEvent) => {
+      if (this.pointerLocked) return;
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      if (
+        e.clientX < rect.left ||
+        e.clientX > rect.right ||
+        e.clientY < rect.top ||
+        e.clientY > rect.bottom
+      ) {
+        this.hasCursor = false;
+        this.mouse.clearLookTarget();
+        return;
+      }
+      this.cursorNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.cursorNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      this.hasCursor = true;
+    };
+    window.addEventListener("pointermove", this.onPointerMove);
+
+    this.onPointerLeave = () => {
+      this.hasCursor = false;
+      this.mouse.clearLookTarget();
+    };
+    this.renderer.domElement.addEventListener("pointerleave", this.onPointerLeave);
 
     this.world = buildWorld(this.scene);
     this.mouse = new MouseController(this.scene);
@@ -129,12 +187,35 @@ export class Engine {
 
     if (s.phase === "playing") {
       this.input.read(this.move);
+
+      // Raycast cursor onto plane passing through mouse head for subtle look tracking
+      if (this.hasCursor && !this.pointerLocked) {
+        const headY = this.mouse.pos.y + 0.14 * MOUSE.scale;
+        this.headPlane.set(this.upVector, -headY);
+        this.raycaster.setFromCamera(this.cursorNDC, this.camera);
+        if (
+          Math.abs(this.raycaster.ray.direction.y) > 0.02 &&
+          this.raycaster.ray.intersectPlane(this.headPlane, this.targetLookPos)
+        ) {
+          this.mouse.setLookTarget(this.targetLookPos.x, this.targetLookPos.y, this.targetLookPos.z);
+        } else {
+          // If camera ray is near-horizontal, project ahead along ray
+          this.targetLookPos
+            .copy(this.camera.position)
+            .addScaledVector(this.raycaster.ray.direction, this.follow.distance * 1.5);
+          this.mouse.setLookTarget(this.targetLookPos.x, this.targetLookPos.y, this.targetLookPos.z);
+        }
+      } else {
+        this.mouse.clearLookTarget();
+      }
+
       this.mouse.update(dt, this.move, this.follow.yaw, this.world.colliders, this.world.platforms);
       const got = this.cheese.update(dt, t, this.mouse.pos.x, this.mouse.pos.z);
       for (let i = 0; i < got; i++) this.store.collect();
       const now = this.store.get();
       if (now.cheese >= now.total && isHome(this.mouse.pos.x, this.mouse.pos.z)) this.store.complete();
     } else {
+      this.mouse.clearLookTarget();
       this.cheese.update(dt, t, 999, 999);
     }
     const marker = this.world.homeMarker;
@@ -166,6 +247,13 @@ export class Engine {
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.unsub();
+    window.removeEventListener("pointermove", this.onPointerMove);
+    this.renderer.domElement.removeEventListener("pointerleave", this.onPointerLeave);
+    this.renderer.domElement.removeEventListener("click", this.onCanvasClick);
+    document.removeEventListener("pointerlockchange", this.onPointerLockChange);
+    document.removeEventListener("mousemove", this.onMouseMove);
+    this.renderer.domElement.removeEventListener("wheel", this.onWheel);
+    window.removeEventListener("keydown", this.onKeyDown);
     this.input.dispose();
     this.cheese.dispose(this.scene);
     this.mouse.dispose(this.scene);
