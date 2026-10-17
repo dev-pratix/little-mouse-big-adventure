@@ -5,9 +5,9 @@
  *
  * Design:
  *  - Each GLB is loaded once, then cloned for every placement → single HTTP fetch per model.
- *  - Building-kit wall segments tile around the room perimeter.
  *  - Furniture is arranged in a cohesive living-room layout with clear walking paths.
  *  - Collision boxes use simple axis-aligned rectangles matching visible footprints.
+ *  - Room perimeter walls are handled entirely by world.ts (PlaneGeometry + ExtrudeGeometry).
  *
  * Kenney conventions (measured from GLB accessor min/max):
  *  - Models are in the +X/+Y/+Z octant mostly, sitting on Y=0.
@@ -25,45 +25,24 @@
  */
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { box, type Box } from "./collision";
 import { ROOM } from "./world";
 
 // ── Paths (relative to public/) ──────────────────────────────────────────────
 const FURN = "/assets/kenney_furniture-kit/Models/GLTF format/";
-const BLDG = "/assets/kenney_building-kit/Models/OBJ format/";
 
 // ── Loader + cache ───────────────────────────────────────────────────────────
 const loaderGLTF = new GLTFLoader();
-const loaderOBJ = new OBJLoader();
-const loaderMTL = new MTLLoader();
 const cache = new Map<string, THREE.Group>();
 
 async function loadModel(url: string): Promise<THREE.Group> {
   const cached = cache.get(url);
   if (cached) return cached;
   return new Promise<THREE.Group>((resolve, reject) => {
-    if (url.endsWith('.glb') || url.endsWith('.gltf')) {
-      loaderGLTF.load(url, (gltf) => {
-        cache.set(url, gltf.scene);
-        resolve(gltf.scene);
-      }, undefined, reject);
-    } else if (url.endsWith('.obj')) {
-      const mtlUrl = url.replace(/\.obj$/i, '.mtl');
-      loaderMTL.load(mtlUrl, (materials) => {
-        materials.preload();
-        loaderOBJ.setMaterials(materials);
-        loaderOBJ.load(url, (obj) => {
-          const group = new THREE.Group();
-          group.add(obj);
-          cache.set(url, group);
-          resolve(group);
-        }, undefined, reject);
-      }, undefined, reject);
-    } else {
-      reject(new Error(`Unsupported model format for ${url}`));
-    }
+    loaderGLTF.load(url, (gltf) => {
+      cache.set(url, gltf.scene);
+      resolve(gltf.scene);
+    }, undefined, reject);
   });
 }
 
@@ -134,50 +113,6 @@ export async function loadFurniture(
     }
   };
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  BUILDING KIT — wall segments
-  // ═══════════════════════════════════════════════════════════════════════════
-  const WALL_SCALE = 3;
-  const WALL_STEP = WALL_SCALE;
-  {
-    const wallModel = await loadModel(BLDG + "wall.obj").catch(() => null);
-    const wallWindowModel = await loadModel(BLDG + "wall-window-square.obj").catch(() => null);
-    const wallCornerModel = await loadModel(BLDG + "wall-corner.obj").catch(() => null);
-
-    if (wallModel) {
-      // Back wall — skip gap for mouse hole (around x = -7)
-      for (let xi = ROOM.minX; xi < ROOM.maxX; xi += WALL_STEP) {
-        if (xi >= -9 && xi < -6) continue;
-        place(sceneGroup, wallModel, xi + WALL_STEP / 2, 0, ROOM.minZ, 0, WALL_SCALE);
-      }
-      // Front wall
-      for (let xi = ROOM.minX; xi < ROOM.maxX; xi += WALL_STEP) {
-        place(sceneGroup, wallModel, xi + WALL_STEP / 2, 0, ROOM.maxZ, Math.PI, WALL_SCALE);
-      }
-      // Left wall
-      for (let zi = ROOM.minZ; zi < ROOM.maxZ; zi += WALL_STEP) {
-        place(sceneGroup, wallModel, ROOM.minX, 0, zi + WALL_STEP / 2, Math.PI / 2, WALL_SCALE);
-      }
-      // Right wall — with a window segment
-      for (let zi = ROOM.minZ; zi < ROOM.maxZ; zi += WALL_STEP) {
-        if (wallWindowModel && zi >= 0 && zi < 3) {
-          place(sceneGroup, wallWindowModel, ROOM.maxX, 0, zi + WALL_STEP / 2, -Math.PI / 2, WALL_SCALE);
-        } else {
-          place(sceneGroup, wallModel, ROOM.maxX, 0, zi + WALL_STEP / 2, -Math.PI / 2, WALL_SCALE);
-        }
-      }
-      groups.push(wallModel);
-      if (wallWindowModel) groups.push(wallWindowModel);
-    }
-
-    if (wallCornerModel) {
-      place(sceneGroup, wallCornerModel, ROOM.minX, 0, ROOM.minZ, Math.PI / 2, WALL_SCALE);
-      place(sceneGroup, wallCornerModel, ROOM.maxX, 0, ROOM.minZ, 0, WALL_SCALE);
-      place(sceneGroup, wallCornerModel, ROOM.minX, 0, ROOM.maxZ, Math.PI, WALL_SCALE);
-      place(sceneGroup, wallCornerModel, ROOM.maxX, 0, ROOM.maxZ, -Math.PI / 2, WALL_SCALE);
-      groups.push(wallCornerModel);
-    }
-  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  FURNITURE — Cohesive layout for a tiny mouse in a human-sized room
