@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { HOLE, NOOK, ROOM } from "./world";
 
 // Default distance constant (exported for possible external use)
-export const DEFAULT_DISTANCE = 2.1;
+export const DEFAULT_DISTANCE = 3.0; // wider starting view
 
 /**
  * FollowCamera (orbit version) – used by Engine.
@@ -13,7 +13,7 @@ export const DEFAULT_DISTANCE = 2.1;
 export class FollowCamera {
   // user-controlled spherical coordinates
   yaw = 0; // horizontal angle around Y axis (radians)
-  pitch = 0.3; // vertical angle from horizon (radians)
+  pitch = 0.28; // vertical angle from horizon (radians, ~16°)
   distance = DEFAULT_DISTANCE;
 
   private pos = new THREE.Vector3();
@@ -21,10 +21,15 @@ export class FollowCamera {
 
   constructor(public cam: THREE.PerspectiveCamera) {}
 
-  /** Snap camera directly behind the mouse – used on reset. */
+  /**
+   * Snap camera to a clear starting position.
+   * The mouse spawns inside the nook (z ≈ -10.3). yaw=0 would put the camera
+   * behind the mouse at z ≈ -12.3, inside the nook back wall.
+   * Adding π flips the camera to the room side (z ≈ -8.3), looking toward the nook.
+   */
   snap(x: number, z: number, yaw: number) {
-    this.yaw = yaw;
-    this.pitch = 0.3;
+    this.yaw = yaw + Math.PI; // camera on room side, looking toward mouse/nook
+    this.pitch = 0.28;
     this.distance = DEFAULT_DISTANCE;
     this.updatePosition(x, z, 0);
   }

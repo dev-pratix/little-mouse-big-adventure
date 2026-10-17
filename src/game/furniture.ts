@@ -201,30 +201,29 @@ export async function loadFurniture(
 
   // ── A. LOUNGE AREA ─────────────────────────────────────────────────────────
   //
-  // loungeSofa native: 0.98 × 0.41 m  → scale 3 → 2.94 × 1.23 m world
-  // Placed at (-5, 0) facing +Z (rotation=0) — back against left-ish side
-  // The model origin is at (0,0,-0.41) to (0.98,0,0).
-  // At rot=0, X spans from -5 to -5+2.94≈-2.06, Z spans from 0 to +1.23.
-  // Pull it to face toward room center (toward +Z). Sofa back at Z≈0, seat facing +Z.
-  //  → Position at (-5, -1) so seat is visible without being too close to back wall.
-  //
-  // colW = 0.98 (native W), colD = 0.41 (native D), scale = 3
-  // World collider: 2.94 × 1.23 m centered at (-5, -1)
-  await add(FURN + "loungeSofa.glb",  -5.0, -1.0,  0,           0.98, 0.41, 3);
+  // loungeSofa native bounds: X[0..0.98], Z[-0.41..0], scale 3
+  //   → World at position (-5.5, -1.5) rot=0:
+  //     X: -5.5 to -5.5 + 0.98*3 = -5.5 to -2.56  (width 2.94 m)
+  //     Z: -1.5 + (-0.41)*3 to -1.5 = -2.73 to -1.5  (depth 1.23 m, back at -2.73, front at -1.5)
+  //   Sofa FRONT edge at Z = -1.5. People on sofa face +Z (toward front wall).
+  //   Sofa center X = (-5.5 + -2.56) / 2 = -4.03
+  //   Sofa clears left wall (minX=-12) by 6.5 m. ✓  Clears back wall by 6.5+ m. ✓
+  await add(FURN + "loungeSofa.glb",  -5.5, -1.5, 0,           0.98, 0.41, 3);
 
-  // Coffee table in front of sofa (toward +Z from sofa)
-  // tableCoffeeSquare native: 0.40 × 0.40 m → scale 2.5 → 1.0 × 1.0 m
-  // Place at (-5, 1.5) — 2.5 m in front of the sofa back edge
-  await add(FURN + "tableCoffeeSquare.glb", -5.0, 1.5, 0,        0.40, 0.40, 2.5);
+  // Coffee table: native 0.40×0.40, scale 2.5 → 1.0×1.0 m world.
+  // Center aligned with sofa center X (-4.0), placed 1.5 m in front of sofa front edge.
+  // Sofa front at Z=-1.5, so table center at Z = -1.5 + 1.5 = 0.0
+  await add(FURN + "tableCoffeeSquare.glb", -4.0, 0.0,  0,       0.40, 0.40, 2.5);
 
-  // Lounge chair — beside the coffee table, angled toward sofa
-  // loungeChair native: 0.49 × 0.41 m → scale 2.5 → 1.22 × 1.02 m
-  // Place at (-1.5, 0.5) rotated to face toward the sofa (pointing in -X direction → ry=π/2)
-  await add(FURN + "loungeChair.glb",  -1.5,  0.5, Math.PI/2,   0.49, 0.41, 2.5);
+  // Lounge chair: native 0.49×0.41, scale 2.5 → 1.22×1.02 m world.
+  // Placed to the right of the coffee table, facing the sofa (rot = Math.PI → faces -Z, toward sofa).
+  // Center at X=-1.0, Z=0.0 — same Z-level as coffee table, facing back toward sofa.
+  await add(FURN + "loungeChair.glb",  -1.0,  0.0, Math.PI,     0.49, 0.41, 2.5);
 
   // ── B. RUG ─────────────────────────────────────────────────────────────────
-  // rugRectangle: decorative only, no collision. Center of room.
-  await add(FURN + "rugRectangle.glb",   0.0, -0.5, 0,           0,    0,    3);
+  // rugRectangle: decorative, no collision.
+  // Centered under the lounge group: X≈-4.0, Z between sofa back (-2.73) and table (0.0) → Z≈-1.5
+  await add(FURN + "rugRectangle.glb",  -3.5, -1.5, 0,           0,    0,    2.5);
 
   // ── C. FLOOR LAMP ──────────────────────────────────────────────────────────
   // Between bookcases and sofa — serves as a visual landmark
