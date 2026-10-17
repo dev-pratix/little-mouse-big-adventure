@@ -152,11 +152,42 @@ export function buildWorld(scene: THREE.Scene): World {
   g.add(sunShaft, sunShaft.target);
 
   // ── Room wall colliders ───────────────────────────────────────────────
-    // Simplified room boundary collider to prevent pass‑through
+    // Room wall colliders with a gap for the mouse hole doorway
+    const doorHalf = HOLE.w / 2;
+    const gapMargin = 0.05;
+    // Back wall left side
+    colliders.push({
+      minX: ROOM.minX - 1,
+      maxX: HOLE.x - doorHalf - gapMargin,
+      minZ: ROOM.minZ - 1,
+      maxZ: ROOM.minZ,
+    });
+    // Back wall right side
+    colliders.push({
+      minX: HOLE.x + doorHalf + gapMargin,
+      maxX: ROOM.maxX + 1,
+      minZ: ROOM.minZ - 1,
+      maxZ: ROOM.minZ,
+    });
+    // Left wall
+    colliders.push({
+      minX: ROOM.minX - 1,
+      maxX: ROOM.minX + 1,
+      minZ: ROOM.minZ - 1,
+      maxZ: ROOM.maxZ + 1,
+    });
+    // Right wall
+    colliders.push({
+      minX: ROOM.maxX - 1,
+      maxX: ROOM.maxX + 1,
+      minZ: ROOM.minZ - 1,
+      maxZ: ROOM.maxZ + 1,
+    });
+    // Front wall
     colliders.push({
       minX: ROOM.minX - 1,
       maxX: ROOM.maxX + 1,
-      minZ: ROOM.minZ - 1,
+      minZ: ROOM.maxZ - 1,
       maxZ: ROOM.maxZ + 1,
     });
 

@@ -1,69 +1,84 @@
-// Camera controller: smooth third-person follow that eases in behind the mouse.
+// Camera controller: orbit camera that follows the mouse but allows user-controlled orbit.
 import * as THREE from "three";
 import { HOLE, NOOK, ROOM } from "./world";
 
-const DIST = 2.1;
-const HEIGHT = 1.0;
-const LOW_HEIGHT = 0.45; // near the hole so the arch doesn't block the view
+// Default distance constant (exported for possible external use)
+export const DEFAULT_DISTANCE = 2.1;
 
+/**
+ * FollowCamera (orbit version) – used by Engine.
+ * It tracks the mouse position but the user can rotate around it with the right mouse button,
+ * zoom with the wheel, and reset with the "R" key.
+ */
 export class FollowCamera {
-  yaw = 0;
-  private height = HEIGHT;
+  // user-controlled spherical coordinates
+  yaw = 0; // horizontal angle around Y axis (radians)
+  pitch = 0.3; // vertical angle from horizon (radians)
+  distance = DEFAULT_DISTANCE;
+
   private pos = new THREE.Vector3();
   private look = new THREE.Vector3();
-  private tmp = new THREE.Vector3();
 
   constructor(public cam: THREE.PerspectiveCamera) {}
 
+  /** Snap camera directly behind the mouse – used on reset. */
   snap(x: number, z: number, yaw: number) {
     this.yaw = yaw;
-    this.compute(x, z);
-    this.pos.copy(this.tmp);
-    this.look.set(x, 0.2, z);
+    this.pitch = 0.3;
+    this.distance = DEFAULT_DISTANCE;
+    this.updatePosition(x, z, 0);
+  }
+
+  /** Reset to default view (same as snap but using current mouse yaw). */
+  reset(x: number, z: number, mouseYaw: number) {
+    this.snap(x, z, mouseYaw);
+  }
+
+  /** Add user‑controlled deltas – called from input handlers. */
+  addYaw(delta: number) {
+    this.yaw = (this.yaw + delta) % (2 * Math.PI);
+  }
+  addPitch(delta: number) {
+    const min = 0.1; // ~6°
+    const max = Math.PI / 2 - 0.1; // just below straight up
+    this.pitch = THREE.MathUtils.clamp(this.pitch + delta, min, max);
+  }
+  addDistance(delta: number) {
+    const min = 1.0;
+    const max = 5.0;
+    this.distance = THREE.MathUtils.clamp(this.distance + delta, min, max);
+  }
+
+  /** Compute camera world position from spherical coordinates. */
+  private updatePosition(x: number, z: number, mouseY: number) {
+    const targetY = 0.2 + mouseY; // look slightly above floor
+    this.look.set(x, targetY, z);
+
+    const sinYaw = Math.sin(this.yaw);
+    const cosYaw = Math.cos(this.yaw);
+    const sinPitch = Math.sin(this.pitch);
+    const cosPitch = Math.cos(this.pitch);
+
+    const offsetX = sinYaw * cosPitch * this.distance;
+    const offsetY = sinPitch * this.distance;
+    const offsetZ = cosYaw * cosPitch * this.distance;
+
+    this.pos.set(x - offsetX, targetY + offsetY, z - offsetZ);
     this.cam.position.copy(this.pos);
     this.cam.lookAt(this.look);
   }
 
-  private compute(x: number, z: number) {
-    const inNookArea = z < ROOM.minZ + 2.2 && x > NOOK.minX - 0.6 && x < NOOK.maxX + 0.6;
-    let cx = x - Math.sin(this.yaw) * DIST;
-    let cz = z - Math.cos(this.yaw) * DIST;
-    let cy = this.height;
-    if (z < ROOM.minZ || (z < ROOM.minZ + 2.2 && Math.abs(x - HOLE.x) < 0.6)) {
-      // mouse is inside its home: keep the camera in the nook or just outside the hole
-      if (cz < ROOM.minZ + 0.2) {
-        cx = Math.max(NOOK.minX + 0.15, Math.min(NOOK.maxX - 0.15, cx));
-        cz = Math.max(NOOK.minZ + 0.15, cz);
-        cy = Math.min(cy, NOOK.h - 0.2);
-      }
-    } else {
-      cz = Math.max(ROOM.minZ + 0.3, cz);
-    }
-    cx = Math.max(ROOM.minX + 0.3, Math.min(ROOM.maxX - 0.3, cx));
-    cz = Math.min(ROOM.maxZ - 0.3, cz);
-    this.tmp.set(cx, cy, cz);
-    return inNookArea;
-  }
-
-  /**
-   * @param mouseY  current Y of the mouse (0 = floor, >0 when on platform or jumping)
-   */
-  update(dt: number, x: number, z: number, mouseY: number, mouseYaw: number, moving: boolean, forwardInput: number) {
-    // only swing behind the mouse while it's heading away from the camera, avoids spinning on "back"
-    if (moving && forwardInput > -0.2) {
-      let d = mouseYaw - this.yaw;
-      d = Math.atan2(Math.sin(d), Math.cos(d));
-      this.yaw += d * (1 - Math.exp(-2.2 * dt));
-    }
-    const near = this.compute(x, z);
-    const targetH = near ? LOW_HEIGHT : HEIGHT;
-    this.height += (targetH - this.height) * (1 - Math.exp(-3 * dt));
-    this.pos.lerp(this.tmp, 1 - Math.exp(-7 * dt));
-
-    // Look-at target tracks mouse Y so we follow the mouse during a jump
-    const lookY = 0.2 + mouseY;
-    this.look.lerp(this.tmp.set(x, lookY, z), 1 - Math.exp(-12 * dt));
-    this.cam.position.copy(this.pos);
-    this.cam.lookAt(this.look);
+  /** Engine calls this each frame. */
+  update(
+    _dt: number,
+    x: number,
+    z: number,
+    mouseY: number,
+    _mouseYaw: number,
+    _moving: boolean,
+    _forwardInput: number,
+  ) {
+    // The orbit parameters are driven by user input events; we just recompute position.
+    this.updatePosition(x, z, mouseY);
   }
 }

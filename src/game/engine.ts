@@ -20,9 +20,11 @@ export class Engine {
   private clock = new THREE.Clock();
   private raf = 0;
   private move = { x: 0, y: 0, run: false, jump: false };
-  private unsub: () => void;
+  private unsub: () => void = () => void 0;
   private lastToken = -1;
   private ro: ResizeObserver;
+  // Pointer‑lock state for third‑person mouse‑look camera
+  private pointerLocked = false;
   /** Furniture loaded async; colliders merged once resolved. */
   private furnitureResult: FurnitureResult | null = null;
 
@@ -35,6 +37,37 @@ export class Engine {
     this.renderer.toneMappingExposure = 1.1;
     host.appendChild(this.renderer.domElement);
 
+    // ----- Pointer‑lock / mouse‑look handling -----
+    // Click the canvas to request pointer lock
+    this.renderer.domElement.addEventListener("click", () => {
+      this.renderer.domElement.requestPointerLock();
+    });
+    // Pointer‑lock change events
+    document.addEventListener("pointerlockchange", () => {
+      this.pointerLocked = document.pointerLockElement === this.renderer.domElement;
+    });
+    document.addEventListener("pointerlockerror", () => {
+      console.warn("[engine] pointer lock error");
+    });
+    // Mouse movement while locked controls camera orientation
+    document.addEventListener("mousemove", (e) => {
+      if (!this.pointerLocked) return;
+      // Sensitivity factors – tweak as needed
+      this.follow.addYaw(-e.movementX * 0.003);
+      this.follow.addPitch(-e.movementY * 0.003);
+    });
+    // Wheel to zoom (works both locked or not)
+    this.renderer.domElement.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      this.follow.addDistance(e.deltaY * 0.01);
+    });
+    // Reset camera with "R" key
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "KeyR") {
+        this.follow.reset(this.mouse.pos.x, this.mouse.pos.z, this.mouse.yaw);
+      }
+    });
+
     this.world = buildWorld(this.scene);
     this.mouse = new MouseController(this.scene);
     this.cheese = new CheeseField(this.scene, CHEESE_SPOTS);
@@ -42,14 +75,16 @@ export class Engine {
     this.reset();
 
     // Load Kenney furniture asynchronously — merges extra colliders once done.
-    loadFurniture(this.world.group).then((result) => {
-      this.furnitureResult = result;
-      // Push furniture colliders into the live colliders array so physics picks them up
-      this.world.colliders.push(...result.colliders);
-      console.log('[engine] colliders count after furniture load:', this.world.colliders.length);
-    }).catch((e) => {
-      console.warn("[engine] furniture load error", e);
-    });
+    loadFurniture(this.world.group)
+      .then((result) => {
+        this.furnitureResult = result;
+        // Push furniture colliders into the live colliders array so physics picks them up
+        this.world.colliders.push(...result.colliders);
+        console.log("[engine] colliders count after furniture load:", this.world.colliders.length);
+      })
+      .catch((e) => {
+        console.warn("[engine] furniture load error", e);
+      });
 
     this.input.onPause = () => {
       const p = store.get().phase;
@@ -77,7 +112,8 @@ export class Engine {
   }
 
   private resize() {
-    const w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
+    const w = this.host.clientWidth || 1,
+      h = this.host.clientHeight || 1;
     this.renderer.setSize(w, h, false);
     this.renderer.domElement.style.width = "100%";
     this.renderer.domElement.style.height = "100%";
@@ -92,7 +128,7 @@ export class Engine {
     const s = this.store.get();
 
     if (s.phase === "playing") {
-      console.log('frame colliders count', this.world.colliders.length);
+      console.log("frame colliders count", this.world.colliders.length);
       this.input.read(this.move);
       this.mouse.update(dt, this.move, this.follow.yaw, this.world.colliders, this.world.platforms);
       const got = this.cheese.update(dt, t, this.mouse.pos.x, this.mouse.pos.z);
