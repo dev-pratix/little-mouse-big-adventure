@@ -46,6 +46,7 @@ export class Engine {
       this.furnitureResult = result;
       // Push furniture colliders into the live colliders array so physics picks them up
       this.world.colliders.push(...result.colliders);
+      console.log('[engine] colliders count after furniture load:', this.world.colliders.length);
     }).catch((e) => {
       console.warn("[engine] furniture load error", e);
     });
@@ -91,7 +92,7 @@ export class Engine {
     const s = this.store.get();
 
     if (s.phase === "playing") {
-      this.input.read(this.move);
+      console.log('frame colliders count', this.world.colliders.length);
       this.mouse.update(dt, this.move, this.follow.yaw, this.world.colliders, this.world.platforms);
       const got = this.cheese.update(dt, t, this.mouse.pos.x, this.mouse.pos.z);
       for (let i = 0; i < got; i++) this.store.collect();

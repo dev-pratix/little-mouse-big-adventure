@@ -152,14 +152,13 @@ export function buildWorld(scene: THREE.Scene): World {
   g.add(sunShaft, sunShaft.target);
 
   // ── Room wall colliders ───────────────────────────────────────────────
-  const T = 1;
-  colliders.push(
-    { minX: ROOM.minX - T, maxX: ROOM.minX, minZ: ROOM.minZ - T, maxZ: ROOM.maxZ + T },
-    { minX: ROOM.maxX, maxX: ROOM.maxX + T, minZ: ROOM.minZ - T, maxZ: ROOM.maxZ + T },
-    { minX: ROOM.minX - T, maxX: ROOM.maxX + T, minZ: ROOM.maxZ, maxZ: ROOM.maxZ + T },
-    { minX: ROOM.minX, maxX: HOLE.x - r, minZ: ROOM.minZ - 0.3, maxZ: ROOM.minZ },
-    { minX: HOLE.x + r, maxX: ROOM.maxX, minZ: ROOM.minZ - 0.3, maxZ: ROOM.minZ },
-  );
+    // Simplified room boundary collider to prevent pass‑through
+    colliders.push({
+      minX: ROOM.minX - 1,
+      maxX: ROOM.maxX + 1,
+      minZ: ROOM.minZ - 1,
+      maxZ: ROOM.maxZ + 1,
+    });
 
   // ── Rug ───────────────────────────────────────────────────────────────
   // Keep the procedural rug for immediate visual feedback; Kenney rugRectangle loads on top

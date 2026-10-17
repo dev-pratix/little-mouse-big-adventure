@@ -17,30 +17,45 @@
  */
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { box, type Box } from "./collision";
 import { ROOM } from "./world";
 
 // ── Paths (relative to public/) ──────────────────────────────────────────────
 const FURN = "/assets/kenney_furniture-kit/Models/GLTF format/";
-const BLDG = "/assets/kenney_building-kit/Models/GLB format/";
+const BLDG = "/assets/kenney_building-kit/Models/OBJ format/";
 
 // ── Loader + cache ───────────────────────────────────────────────────────────
-const loader = new GLTFLoader();
+const loaderGLTF = new GLTFLoader();
+const loaderOBJ = new OBJLoader();
+const loaderMTL = new MTLLoader();
 const cache = new Map<string, THREE.Group>();
 
 async function loadModel(url: string): Promise<THREE.Group> {
   const cached = cache.get(url);
   if (cached) return cached;
   return new Promise<THREE.Group>((resolve, reject) => {
-    loader.load(
-      url,
-      (gltf) => {
+    if (url.endsWith('.glb') || url.endsWith('.gltf')) {
+      loaderGLTF.load(url, (gltf) => {
         cache.set(url, gltf.scene);
         resolve(gltf.scene);
-      },
-      undefined,
-      reject,
-    );
+      }, undefined, reject);
+    } else if (url.endsWith('.obj')) {
+      const mtlUrl = url.replace(/\.obj$/i, '.mtl');
+      loaderMTL.load(mtlUrl, (materials) => {
+        materials.preload();
+        loaderOBJ.setMaterials(materials);
+        loaderOBJ.load(url, (obj) => {
+          const group = new THREE.Group();
+          group.add(obj);
+          cache.set(url, group);
+          resolve(group);
+        }, undefined, reject);
+      }, undefined, reject);
+    } else {
+      reject(new Error(`Unsupported model format for ${url}`));
+    }
   });
 }
 
@@ -117,12 +132,12 @@ export async function loadFurniture(
   // Building-kit floor.glb is 1×1 m. We tile the room (X: -12..12, Z: -9..9).
   // Step by 1 unit; 24×18 = 432 clones. Skip the nook (Z < -9 is covered by world.ts).
   {
-    const floorModel = await loadModel(BLDG + "floor.glb").catch(() => null);
+    const floorModel = null; // Kenney floor tiles disabled
     if (floorModel) {
       for (let xi = -12; xi < 12; xi++) {
         for (let zi = -9; zi < 9; zi++) {
           const f = floorModel.clone(true);
-          f.position.set(xi + 0.5, 0, zi + 0.5);
+          f.position.set(xi + 0.5, -0.1, zi + 0.5);
           f.traverse((o) => {
             if (o instanceof THREE.Mesh) o.receiveShadow = true;
           });
@@ -140,9 +155,9 @@ export async function loadFurniture(
   const WALL_SCALE = 3;
   const WALL_STEP = WALL_SCALE; // each piece covers 3 m of wall length
   {
-    const wallModel = await loadModel(BLDG + "wall.glb").catch(() => null);
-    const wallWindowModel = await loadModel(BLDG + "wall-window-square.glb").catch(() => null);
-    const wallCornerModel = await loadModel(BLDG + "wall-corner.glb").catch(() => null);
+    const wallModel = await loadModel(BLDG + "wall.obj").catch(() => null);
+    const wallWindowModel = await loadModel(BLDG + "wall-window-square.obj").catch(() => null);
+    const wallCornerModel = await loadModel(BLDG + "wall-corner.obj").catch(() => null);
 
     if (wallModel) {
       // ── Back wall (Z = ROOM.minZ = -9) ─────────────────────────────────
