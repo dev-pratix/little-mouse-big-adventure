@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { HOLE, NOOK, ROOM } from "./world";
 
 // Default distance constant (exported for possible external use)
-export const DEFAULT_DISTANCE = 4.5; // clear view of mouse and room
+export const DEFAULT_DISTANCE = 3.8; // clear view of scaled mouse and room context
 
 /**
  * FollowCamera (orbit version) – used by Engine.
@@ -56,7 +56,7 @@ export class FollowCamera {
 
   /** Compute camera world position from spherical coordinates. */
   private updatePosition(x: number, z: number, mouseY: number) {
-    const targetY = 0.2 + mouseY; // look slightly above floor
+    const targetY = 0.16 + mouseY; // look slightly above floor at mouse center
     this.look.set(x, targetY, z);
 
     const sinYaw = Math.sin(this.yaw);

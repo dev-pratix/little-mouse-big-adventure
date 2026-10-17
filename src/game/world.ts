@@ -8,9 +8,9 @@ import { box, platform, type Box, type Platform } from "./collision";
 import { rug, wallpaper, woodFloor } from "./textures";
 
 export const ROOM = { minX: -8.0, maxX: 8.0, minZ: -6.5, maxZ: 6.5, h: 9.0 };
-export const HOLE = { x: -5.0, w: 0.9, h: 0.9 };
-export const NOOK = { minX: -6.3, maxX: -3.7, minZ: -8.8, maxZ: -6.8, h: 1.4 };
-export const START = { x: -5.0, z: -7.8, yaw: 0 };
+export const HOLE = { x: -5.0, w: 0.40, h: 0.38 };
+export const NOOK = { minX: -5.85, maxX: -4.15, minZ: -8.0, maxZ: -6.5, h: 0.70 };
+export const START = { x: -5.0, z: -7.35, yaw: 0 };
 export const CHEESE_SPOTS: [number, number][] = [
   [4.50, -2.40], // Study beside desk
   [5.50, -5.50], // Study corner plant
@@ -18,7 +18,7 @@ export const CHEESE_SPOTS: [number, number][] = [
 ];
 
 export function isHome(x: number, z: number) {
-  return z < NOOK.maxZ - 0.15 && x > NOOK.minX && x < NOOK.maxX;
+  return z < -6.65 && x > NOOK.minX && x < NOOK.maxX;
 }
 
 const mat = (color: string, o: Partial<THREE.MeshStandardMaterialParameters> = {}) =>
@@ -100,14 +100,14 @@ export function buildWorld(scene: THREE.Scene): World {
   side(D, ROOM.maxX, 0, -Math.PI / 2);
   side(W, 0, ROOM.maxZ, Math.PI);
 
-  // Back wall with arched mouse-hole cutout at HOLE.x = -5.0
+  // Back wall with discreet arched mouse-hole cutout at HOLE.x = -5.0
   const shape = new THREE.Shape();
   shape.moveTo(ROOM.minX, 0);
   shape.lineTo(ROOM.maxX, 0);
   shape.lineTo(ROOM.maxX, ROOM.h);
   shape.lineTo(ROOM.minX, ROOM.h);
   shape.closePath();
-  const r = HOLE.w / 2; // 0.45m
+  const r = HOLE.w / 2; // 0.20m
   const hole = new THREE.Path();
   hole.moveTo(HOLE.x - r, 0);
   hole.lineTo(HOLE.x - r, HOLE.h - r);
@@ -125,22 +125,22 @@ export function buildWorld(scene: THREE.Scene): World {
   back.receiveShadow = false;
   g.add(back);
 
-  // Arch trim around mouse hole
+  // Arch trim around discreet mouse hole
   const trim = mesh(
-    new THREE.TorusGeometry(r + 0.04, 0.05, 8, 24, Math.PI),
+    new THREE.TorusGeometry(r + 0.025, 0.03, 8, 24, Math.PI),
     mat("#8a5a36"),
     HOLE.x, HOLE.h - r, ROOM.minZ + 0.02,
   );
   g.add(trim);
   for (const s of [-1, 1]) {
     g.add(mesh(
-      new THREE.BoxGeometry(0.1, HOLE.h - r, 0.1),
+      new THREE.BoxGeometry(0.06, HOLE.h - r, 0.06),
       mat("#8a5a36"),
-      HOLE.x + s * (r + 0.04), (HOLE.h - r) / 2, ROOM.minZ + 0.02,
+      HOLE.x + s * (r + 0.025), (HOLE.h - r) / 2, ROOM.minZ + 0.02,
     ));
   }
 
-  // Outer skirting boards
+  // Outer skirting boards (notched neatly around discreet mouse hole)
   const skirt = mat("#f5ead6");
   g.add(mesh(new THREE.BoxGeometry(W, 0.35, 0.08), skirt, 0, 0.175, ROOM.maxZ - 0.04));
   g.add(mesh(new THREE.BoxGeometry(HOLE.x - r - ROOM.minX, 0.35, 0.08), skirt, (ROOM.minX + HOLE.x - r) / 2, 0.175, ROOM.minZ + 0.04));
@@ -256,19 +256,19 @@ export function buildWorld(scene: THREE.Scene): World {
   g.add(mesh(new THREE.BoxGeometry(W, 0.05, 0.20), crownM, 0, H_WALL + 0.025, 0));
 
   // ── Outer room wall colliders ─────────────────────────────────────────
-  const doorHalf = HOLE.w / 2;
-  const gapMargin = 0.05;
+  const doorHalf = HOLE.w / 2; // 0.20m
+  const gapMargin = 0.03; // precise clearance for 0.11m radius mouse
   const skirtT = 0.08;
-  // Back wall left side
+  // Back wall left side: terminates at left edge of mouse hole
   colliders.push({
     minX: ROOM.minX - 1,
-    maxX: HOLE.x - doorHalf - gapMargin,
+    maxX: HOLE.x - doorHalf - gapMargin, // -5.23
     minZ: ROOM.minZ - 1,
     maxZ: ROOM.minZ + skirtT,
   });
-  // Back wall right side
+  // Back wall right side: starts at right edge of mouse hole
   colliders.push({
-    minX: HOLE.x + doorHalf + gapMargin,
+    minX: HOLE.x + doorHalf + gapMargin, // -4.77
     maxX: ROOM.maxX + 1,
     minZ: ROOM.minZ - 1,
     maxZ: ROOM.minZ + skirtT,
@@ -306,7 +306,7 @@ export function buildWorld(scene: THREE.Scene): World {
   rg.rotation.x = -Math.PI / 2;
   g.add(rg);
 
-  // ── Mouse home (nook behind the arched hole) ──────────────────────────
+  // ── Mouse home (compact, cosy nest behind the discreet mouse hole) ──
   const n = NOOK;
   const nw = n.maxX - n.minX, nd = n.maxZ - n.minZ;
   const nookM = mat("#c99a6b", { side: THREE.DoubleSide, roughness: 1 });
@@ -317,10 +317,10 @@ export function buildWorld(scene: THREE.Scene): World {
     p.rotation.set(rx, ry, 0);
     g.add(p);
   };
-  plane(nw, n.h, ncx, n.h / 2, n.minZ, 0, 0);
-  plane(nd, n.h, n.minX, n.h / 2, ncz, 0, Math.PI / 2);
-  plane(nd, n.h, n.maxX, n.h / 2, ncz, 0, Math.PI / 2);
-  plane(nw, nd, ncx, n.h, ncz, Math.PI / 2, 0);
+  plane(nw, n.h, ncx, n.h / 2, n.minZ, 0, 0); // back wall at z = -8.0
+  plane(nd, n.h, n.minX, n.h / 2, ncz, 0, Math.PI / 2); // left wall at x = -5.85
+  plane(nd, n.h, n.maxX, n.h / 2, ncz, 0, Math.PI / 2); // right wall at x = -4.15
+  plane(nw, nd, ncx, n.h, ncz, Math.PI / 2, 0); // low ceiling at y = 0.70
   const nfloor = mesh(
     new THREE.PlaneGeometry(nw, nd),
     mat("#9e6b44"),
@@ -334,43 +334,43 @@ export function buildWorld(scene: THREE.Scene): World {
     { minX: n.minX - 1, maxX: n.maxX + 1, minZ: n.minZ - 1, maxZ: n.minZ },
   );
 
-  // Matchbox bed (mouse-scale furniture in the nook)
-  g.add(mesh(new THREE.BoxGeometry(0.75, 0.18, 0.45), mat("#d8473b"), -5.85, 0.09, -8.35));
-  g.add(mesh(new THREE.BoxGeometry(0.7, 0.06, 0.4), mat("#f1d9a6"), -5.85, 0.21, -8.35));
-  g.add(mesh(new THREE.BoxGeometry(0.2, 0.08, 0.3), mat("#ffffff"), -6.1, 0.27, -8.35));
-  colliders.push(box(-5.85, -8.35, 0.75, 0.45));
+  // Matchbox bed (cosy sleeping nook along left wall)
+  g.add(mesh(new THREE.BoxGeometry(0.55, 0.14, 0.35), mat("#d8473b"), -5.50, 0.07, -7.50));
+  g.add(mesh(new THREE.BoxGeometry(0.50, 0.05, 0.32), mat("#f1d9a6"), -5.50, 0.165, -7.50));
+  g.add(mesh(new THREE.BoxGeometry(0.16, 0.06, 0.24), mat("#ffffff"), -5.66, 0.21, -7.50));
+  colliders.push(box(-5.50, -7.50, 0.55, 0.35));
 
-  // Spool table
-  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16), mat("#d9b07a"), -4.4, 0.3, -8.2));
-  g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.26, 12), mat("#5b88a8"), -4.4, 0.15, -8.2));
-  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16), mat("#d9b07a"), -4.4, 0.02, -8.2));
-  colliders.push(box(-4.4, -8.2, 0.4, 0.4));
+  // Spool table & thimble lamp (eating & study nook along right wall)
+  g.add(mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.03, 16), mat("#d9b07a"), -4.50, 0.245, -7.50));
+  g.add(mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.20, 12), mat("#5b88a8"), -4.50, 0.13, -7.50));
+  g.add(mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.03, 16), mat("#d9b07a"), -4.50, 0.015, -7.50));
+  colliders.push(box(-4.50, -7.50, 0.32, 0.32));
 
   // Bottle-cap stool
-  g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.07, 14), mat("#c9302c", { metalness: 0.5, roughness: 0.4 }), -4.75, 0.035, -7.8));
+  g.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 14), mat("#c9302c", { metalness: 0.5, roughness: 0.4 }), -4.50, 0.03, -7.15));
 
-  // Thimble lamp
-  g.add(mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.14, 12), mat("#c0c0c0", { metalness: 0.7, roughness: 0.3 }), -4.1, 0.07, -8.55));
-  g.add(mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffd27a" }), -4.1, 0.2, -8.55, false));
-  const lamp = new THREE.PointLight("#ffbf66", 2.2, 3.2, 1.5);
-  lamp.position.set(-4.4, 0.6, -7.8);
+  // Thimble lamp (atop spool table)
+  g.add(mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.10, 12), mat("#c0c0c0", { metalness: 0.7, roughness: 0.3 }), -4.42, 0.31, -7.50));
+  g.add(mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffd27a" }), -4.42, 0.40, -7.50, false));
+  const lamp = new THREE.PointLight("#ffbe60", 1.8, 2.8, 1.4);
+  lamp.position.set(-4.50, 0.45, -7.45);
   g.add(lamp);
 
-  // Food storage
-  g.add(mesh(new THREE.SphereGeometry(0.12, 12, 10), mat("#8c5a2b"), -3.95, 0.1, -7.2));
-  g.add(mesh(new THREE.SphereGeometry(0.1, 12, 10), mat("#a06a35"), -4.05, 0.08, -6.95));
-  const sack = mesh(new THREE.SphereGeometry(0.16, 12, 10), mat("#cbb08a", { roughness: 1 }), -6.05, 0.14, -7.05);
+  // Food storage (pantry tucked in left corner near entrance)
+  g.add(mesh(new THREE.SphereGeometry(0.09, 12, 10), mat("#8c5a2b"), -5.60, 0.08, -6.95));
+  g.add(mesh(new THREE.SphereGeometry(0.07, 12, 10), mat("#a06a35"), -5.65, 0.06, -6.75));
+  const sack = mesh(new THREE.SphereGeometry(0.12, 12, 10), mat("#cbb08a", { roughness: 1 }), -5.60, 0.12, -6.85);
   sack.scale.y = 1.2;
   g.add(sack);
-  colliders.push(box(-4.0, -7.05, 0.3, 0.4), box(-6.05, -7.05, 0.3, 0.3));
+  colliders.push(box(-5.60, -6.85, 0.28, 0.28));
 
   // ── Home marker ────────────────────────────────────────────────────────
   const homeMarker = new THREE.Mesh(
-    new THREE.RingGeometry(0.35, 0.5, 32),
+    new THREE.RingGeometry(0.25, 0.38, 32),
     new THREE.MeshBasicMaterial({ color: "#ffcf4a", transparent: true, opacity: 0.85, side: THREE.DoubleSide }),
   );
   homeMarker.rotation.x = -Math.PI / 2;
-  homeMarker.position.set(HOLE.x, 0.02, ROOM.minZ - 0.9);
+  homeMarker.position.set(HOLE.x, 0.02, ROOM.minZ - 0.50);
   homeMarker.visible = false;
   g.add(homeMarker);
 

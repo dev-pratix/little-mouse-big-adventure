@@ -4,13 +4,14 @@ import * as THREE from "three";
 import { groundY, resolve, type Box, type Platform } from "./collision";
 
 export const MOUSE = {
-  radius: 0.13,
-  walk: 2.2,
-  run: 3.8,
+  scale: 0.82,
+  radius: 0.11,
+  walk: 2.1,
+  run: 3.6,
   accel: 10,
   turn: 12,
   /** Initial vertical velocity when jumping (m/s) */
-  jumpVel: 2.0,
+  jumpVel: 1.85,
   /** Gravity (m/s²) */
   gravity: 9.0,
 };
@@ -75,6 +76,7 @@ export class MouseController {
   private phase = 0;
 
   constructor(scene: THREE.Scene) {
+    this.root.scale.setScalar(MOUSE.scale);
     scene.add(this.root);
   }
 
