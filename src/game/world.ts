@@ -193,12 +193,12 @@ export function buildWorld(scene: THREE.Scene): World {
   });
 
   // ── Rug ───────────────────────────────────────────────────────────────
-  // Procedural rug: immediate visual feedback under lounge zone until GLB loads.
-  // Centered under sofa and coffee table: X=-6.80, Z=-1.40, size 5x3.2m
+  // Procedural rug: immediate visual feedback under living room suite until GLB loads.
+  // Centered under sofa, table, and armchair: X=-7.60, Z=-4.50, size 5.97x3.50m
   const rg = mesh(
-    new THREE.PlaneGeometry(5.0, 3.2),
+    new THREE.PlaneGeometry(5.97, 3.50),
     mat("#ffffff", { map: rug(), roughness: 1 }),
-    -6.80, 0.01, -1.40, false,
+    -7.60, 0.01, -4.50, false,
   );
   rg.rotation.x = -Math.PI / 2;
   g.add(rg);
