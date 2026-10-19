@@ -74,6 +74,8 @@ export class MouseController {
   grounded = true;
 
   private phase = 0;
+  private coyoteTimer = 0;
+  private jumpBufferTimer = 0;
 
   headYaw = 0;
   headPitch = 0;
@@ -92,6 +94,8 @@ export class MouseController {
     this.vel.x = this.vel.y = this.vel.z = 0;
     this.yaw = yaw;
     this.grounded = true;
+    this.coyoteTimer = 0;
+    this.jumpBufferTimer = 0;
     this.headYaw = 0;
     this.headPitch = 0;
     this.targetHeadYaw = 0;
@@ -195,9 +199,24 @@ export class MouseController {
     // ── Vertical (gravity + jump + step-up) ──────────────────────────────
     const floor = groundY(this.pos, MOUSE.radius, platforms, this.pos.y);
 
-    if (this.grounded && move.jump) {
+    // Coyote time grace period and jump input buffering
+    if (this.grounded) {
+      this.coyoteTimer = 0.10; // 100ms grace period after walking off edges
+    } else {
+      this.coyoteTimer = Math.max(0, this.coyoteTimer - dt);
+    }
+
+    if (move.jump) {
+      this.jumpBufferTimer = 0.12; // 120ms buffer for jump requests
+    } else {
+      this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - dt);
+    }
+
+    if (this.jumpBufferTimer > 0 && (this.grounded || this.coyoteTimer > 0)) {
       this.vel.y = MOUSE.jumpVel;
       this.grounded = false;
+      this.coyoteTimer = 0;
+      this.jumpBufferTimer = 0;
     }
 
     if (!this.grounded) {
@@ -208,6 +227,12 @@ export class MouseController {
         this.pos.y = floor;
         this.vel.y = 0;
         this.grounded = true;
+        if (this.jumpBufferTimer > 0) {
+          this.vel.y = MOUSE.jumpVel;
+          this.grounded = false;
+          this.coyoteTimer = 0;
+          this.jumpBufferTimer = 0;
+        }
       }
     } else {
       // Smoothly step up onto platforms (or back down off them)

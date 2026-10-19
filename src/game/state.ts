@@ -1,3 +1,5 @@
+import { CHEESE_SPOTS } from "./world";
+
 // Game state: mission progress, pause, completion. Tiny observable store used by React (HUD) and the engine.
 export type Phase = "title" | "playing" | "paused" | "complete";
 
@@ -12,8 +14,8 @@ export interface GameState {
 
 type Listener = () => void;
 
-export function createStore() {
-  let state: GameState = { phase: "title", cheese: 0, total: 3, restartToken: 0, isHiding: false };
+export function createStore(totalCheeses: number = CHEESE_SPOTS.length) {
+  let state: GameState = { phase: "title", cheese: 0, total: totalCheeses, restartToken: 0, isHiding: false };
   const listeners = new Set<Listener>();
   const set = (patch: Partial<GameState>) => {
     state = { ...state, ...patch };

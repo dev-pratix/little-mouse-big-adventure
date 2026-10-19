@@ -45,7 +45,7 @@ export class CheeseField {
     for (const [x, z] of spots) {
       const g = new THREE.Group();
       const w = new THREE.Mesh(this.geo, this.mat);
-      w.castShadow = true;
+      w.castShadow = false;
       w.position.y = 0.12;
       g.add(w);
 
@@ -118,7 +118,7 @@ export class CheeseField {
         c.light.intensity = Math.max(0, 2.5 * (1 - c.t / 0.45));
         if (c.t > 0.45) {
           c.mesh.visible = false;
-          c.light.visible = false;
+          c.light.intensity = 0;
         }
       }
     }

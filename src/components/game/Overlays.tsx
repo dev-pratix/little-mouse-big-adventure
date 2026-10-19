@@ -91,6 +91,32 @@ export async function requestLandscape() {
   }
 }
 
+/** Attempts to toggle document fullscreen mode with user gesture fallback */
+export async function toggleFullscreen(element?: HTMLElement) {
+  if (typeof document === "undefined") return;
+  const target = element || document.documentElement;
+  try {
+    const isFs =
+      document.fullscreenElement ||
+      (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement;
+    if (!isFs) {
+      if (target.requestFullscreen) {
+        await target.requestFullscreen();
+      } else if ((target as unknown as { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen) {
+        await (target as unknown as { webkitRequestFullscreen: () => Promise<void> }).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if ((document as unknown as { webkitExitFullscreen?: () => Promise<void> }).webkitExitFullscreen) {
+        await (document as unknown as { webkitExitFullscreen: () => Promise<void> }).webkitExitFullscreen();
+      }
+    }
+  } catch {
+    // Graceful fallback: fullscreen may be unsupported or rejected by browser policy
+  }
+}
+
 /** Early Access Development Welcome Screen */
 export function TitleScreen({
   store,
@@ -179,7 +205,10 @@ export function RotateDevicePrompt() {
 
         <button
           className="btn-soft mt-5 px-6 py-2 text-xs font-semibold"
-          onClick={() => requestLandscape()}
+          onClick={async () => {
+            await toggleFullscreen();
+            await requestLandscape();
+          }}
         >
           Try Rotate Screen
         </button>
@@ -234,7 +263,7 @@ export function HUD({ s, store, isTouch }: { s: GameState; store: Store; isTouch
             <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
               {done
                 ? "✨ All cheese collected! Scurry back to your mouse burrow!"
-                : "Steal three pieces of cheese. Look for golden beacons!"}
+                : `Steal ${s.total} pieces of cheese. Look for golden beacons!`}
             </p>
           </div>
           {s.isHiding && (
@@ -248,6 +277,14 @@ export function HUD({ s, store, isTouch }: { s: GameState; store: Store; isTouch
             <div className="panel-cozy flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 font-display text-lg sm:text-xl" aria-label="cheese counter">
               <Cheese /> {s.cheese}/{s.total}
             </div>
+            <button
+              className="btn-soft pointer-events-auto h-10 w-10 sm:h-11 sm:w-11 rounded-full text-sm sm:text-base flex items-center justify-center shadow"
+              aria-label="Toggle Fullscreen"
+              title="Toggle Fullscreen"
+              onClick={() => toggleFullscreen()}
+            >
+              ⛶
+            </button>
             <button
               className="btn-soft pointer-events-auto h-10 w-10 sm:h-11 sm:w-11 rounded-full text-sm sm:text-base flex items-center justify-center shadow"
               aria-label={muted ? "Unmute sound" : "Mute sound"}
@@ -328,6 +365,9 @@ export function PauseMenu({ store, onResetCamera }: { store: Store; onResetCamer
         <p className="mt-1 text-sm text-muted-foreground">Catching your breath…</p>
         <div className="mt-6 flex flex-col gap-3">
           <button className="btn-cozy py-2.5" onClick={store.resume} autoFocus>Resume</button>
+          <button className="btn-soft py-2.5" onClick={() => toggleFullscreen()}>
+            Toggle Fullscreen
+          </button>
           {onResetCamera && (
             <button
               className="btn-soft py-2.5"
@@ -347,21 +387,22 @@ export function PauseMenu({ store, onResetCamera }: { store: Store; onResetCamer
 }
 
 export function CompleteScreen({ store }: { store: Store }) {
+  const s = store.get();
   return (
     <div className="overlay-scrim absolute inset-0 flex items-center justify-center p-6">
       <div className="panel-cozy max-w-sm p-8 text-center animate-in fade-in zoom-in-95 duration-300">
         <p className="eyebrow">Mission Complete</p>
         <h2 className="title-logo mt-2 text-4xl">Heist Pulled Off!</h2>
         <p className="mt-3 text-muted-foreground">
-          All three cheeses are safely stashed away in your burrow. The humans suspect nothing. Probably.
+          All {s.total} cheeses are safely stashed away in your burrow. The humans suspect nothing. Probably.
         </p>
-        <div className="mt-5 flex justify-center gap-3">
-          <span className="scale-125"><Cheese /></span>
-          <span className="scale-125"><Cheese /></span>
-          <span className="scale-125"><Cheese /></span>
+        <div className="mt-5 flex justify-center gap-2.5 flex-wrap">
+          {Array.from({ length: s.total }).map((_, i) => (
+            <span key={i} className="scale-125"><Cheese /></span>
+          ))}
         </div>
         <div className="mt-4 py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-xs text-amber-200/90">
-          🏆 Master Infiltrator · 3 / 3 Cheeses Secured
+          🏆 Master Infiltrator · {s.cheese} / {s.total} Cheeses Secured
         </div>
         <button className="btn-cozy mt-6 px-8 py-3 text-base font-semibold" onClick={store.restart} autoFocus>
           Play Again

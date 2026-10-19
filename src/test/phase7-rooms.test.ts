@@ -113,7 +113,7 @@ describe("Phase 7: Room Upgrades, Navigation & Cheese Reachability", () => {
     expect(footwellPos.z).toBeCloseTo(originalPos.z, 2);
   });
 
-  it("ensures all 3 cheese collectibles remain fully reachable with no collider overlap", () => {
+  it("ensures all cheese collectibles remain fully reachable with no collider overlap", () => {
     for (const [cx, cz] of CHEESE_SPOTS) {
       const cheesePos = { x: cx, z: cz };
       const testPos = { ...cheesePos };
