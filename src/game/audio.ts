@@ -3,6 +3,23 @@
 
 class SoundFX {
   private ctx: AudioContext | null = null;
+  private muted = false;
+  private listeners = new Set<() => void>();
+
+  get isMuted(): boolean {
+    return this.muted;
+  }
+
+  toggleMute(): boolean {
+    this.muted = !this.muted;
+    this.listeners.forEach((l) => l());
+    return this.muted;
+  }
+
+  subscribe(listener: () => void) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
 
   private getContext(): AudioContext | null {
     if (typeof window === "undefined") return null;
@@ -23,6 +40,7 @@ class SoundFX {
    * Pitches rise progressively with each cheese collected (1, 2, 3).
    */
   playCheesePickup(count: number) {
+    if (this.muted) return;
     const ctx = this.getContext();
     if (!ctx) return;
 
@@ -57,6 +75,7 @@ class SoundFX {
    * Triumphant victory fanfare when completing the heist at the mouse burrow.
    */
   playVictoryFanfare() {
+    if (this.muted) return;
     const ctx = this.getContext();
     if (!ctx) return;
 

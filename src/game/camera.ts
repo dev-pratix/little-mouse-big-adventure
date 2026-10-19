@@ -9,6 +9,7 @@ export const MIN_DISTANCE = 1.4;     // minimum zoom distance (keeps mouse clear
 export const MAX_DISTANCE = 4.8;     // maximum zoom distance (prevents losing character context)
 export const MIN_PITCH = 0.10;       // ~6° (keeps camera strictly above floor)
 export const MAX_PITCH = 1.30;       // ~75° (prevents camera flip directly overhead)
+export const TOUCH_CAMERA_SENSITIVITY = 0.0055; // default drag sensitivity on touch screens
 
 /**
  * FollowCamera – third-person gameplay camera with user orbit and controlled zoom.

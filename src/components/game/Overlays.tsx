@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { soundFX } from "@/game/audio";
 import type { GameState, Store } from "@/game/state";
 
 const Cheese = () => <span aria-hidden className="cheese-icon" />;
@@ -145,40 +146,53 @@ function Key({ label }: { label: string }) {
 }
 
 export function HUD({ s, store, isTouch }: { s: GameState; store: Store; isTouch?: boolean }) {
+  const [muted, setMuted] = useState(soundFX.isMuted);
+
+  useEffect(() => {
+    return soundFX.subscribe(() => setMuted(soundFX.isMuted));
+  }, []);
+
   const done = s.cheese >= s.total;
   return (
     <>
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4"
+        className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3.5 sm:p-4"
         style={{
-          paddingTop: "max(1rem, env(safe-area-inset-top, 0px))",
+          paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))",
           paddingLeft: "max(1rem, env(safe-area-inset-left, 0px))",
           paddingRight: "max(1rem, env(safe-area-inset-right, 0px))",
         }}
       >
-        <div className="flex flex-col gap-2">
-          <div className="panel-cozy max-w-[17rem] px-4 py-3">
-            <p className="eyebrow">Mission</p>
-            <p className="font-display text-base leading-tight">A Mouse's First Heist</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+        <div className="flex flex-col gap-1.5">
+          <div className="panel-cozy max-w-[13.5rem] sm:max-w-[16rem] px-3 py-2 sm:px-4 sm:py-2.5">
+            <p className="eyebrow text-[0.65rem] sm:text-xs">Mission</p>
+            <p className="font-display text-sm sm:text-base leading-tight">A Mouse's First Heist</p>
+            <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
               {done
                 ? "✨ All cheese collected! Scurry back to your mouse burrow!"
                 : "Steal three pieces of cheese. Look for golden beacons!"}
             </p>
           </div>
           {s.isHiding && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/85 backdrop-blur-md text-xs font-medium text-emerald-300 border border-emerald-400/40 shadow-md w-fit">
-              <span className="text-sm">🐾</span> Hidden · {s.hidingZone || "Under furniture"}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/85 backdrop-blur-md text-[0.7rem] sm:text-xs font-medium text-emerald-300 border border-emerald-400/40 shadow-md w-fit">
+              <span>🐾</span> Hidden · {s.hidingZone || "Under furniture"}
             </div>
           )}
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-2">
-            <div className="panel-cozy flex items-center gap-2 px-4 py-2 font-display text-xl" aria-label="cheese counter">
+            <div className="panel-cozy flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 font-display text-lg sm:text-xl" aria-label="cheese counter">
               <Cheese /> {s.cheese}/{s.total}
             </div>
             <button
-              className="btn-cozy pointer-events-auto h-11 w-11 rounded-full text-base font-bold flex items-center justify-center"
+              className="btn-soft pointer-events-auto h-10 w-10 sm:h-11 sm:w-11 rounded-full text-sm sm:text-base flex items-center justify-center shadow"
+              aria-label={muted ? "Unmute sound" : "Mute sound"}
+              onClick={() => soundFX.toggleMute()}
+            >
+              {muted ? "🔇" : "🔊"}
+            </button>
+            <button
+              className="btn-cozy pointer-events-auto h-10 w-10 sm:h-11 sm:w-11 rounded-full text-sm sm:text-base font-bold flex items-center justify-center shadow"
               aria-label="Pause"
               onClick={store.pause}
             >

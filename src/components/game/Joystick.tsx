@@ -1,45 +1,72 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
+import { TOUCH_CAMERA_SENSITIVITY } from "@/game/camera";
 import type { Engine } from "@/game/engine";
 
 export function Joystick({ engine }: { engine: Engine | null }) {
   const baseRef = useRef<HTMLDivElement>(null);
-  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const knobRef = useRef<HTMLDivElement>(null);
+
   const [isSprinting, setIsSprinting] = useState(false);
+  const [isJumping, setIsJumping] = useState(false);
+
   const joyPointerId = useRef<number | null>(null);
   const camPointerId = useRef<number | null>(null);
+  const sprintPointerId = useRef<number | null>(null);
+  const jumpPointerId = useRef<number | null>(null);
   const camLastPos = useRef({ x: 0, y: 0 });
 
-  // Reset touch state on unmount or engine change
-  useEffect(() => {
-    return () => {
-      if (engine) engine.input.resetTouch();
-    };
+  // Reset all touch inputs on unmount or when engine changes
+  const clearAllTouch = useCallback(() => {
+    joyPointerId.current = null;
+    camPointerId.current = null;
+    sprintPointerId.current = null;
+    jumpPointerId.current = null;
+    setIsSprinting(false);
+    setIsJumping(false);
+    if (knobRef.current) {
+      knobRef.current.style.transform = "translate(-50%, -50%)";
+    }
+    if (engine) {
+      engine.input.resetTouch();
+    }
   }, [engine]);
 
-  // ── Joystick Handler ───────────────────────────────────────────────
+  useEffect(() => {
+    window.addEventListener("blur", clearAllTouch);
+    return () => {
+      window.removeEventListener("blur", clearAllTouch);
+      clearAllTouch();
+    };
+  }, [clearAllTouch]);
+
+  // ── 1. Virtual Movement Joystick ──────────────────────────────────
   const updateJoystick = (clientX: number, clientY: number) => {
-    if (!baseRef.current) return;
+    if (!baseRef.current || !knobRef.current) return;
     const rect = baseRef.current.getBoundingClientRect();
     const radius = rect.width / 2;
     let dx = (clientX - (rect.left + radius)) / radius;
     let dy = (clientY - (rect.top + radius)) / radius;
     const mag = Math.hypot(dx, dy);
 
-    if (mag > 1) {
-      dx /= mag;
-      dy /= mag;
-    }
+    // Clamp visually to base perimeter
+    const clampedMag = Math.min(1, mag);
+    const unitX = mag > 0.001 ? dx / mag : 0;
+    const unitY = mag > 0.001 ? dy / mag : 0;
 
-    setKnob({ x: dx, y: dy });
+    const visualX = unitX * clampedMag * 44;
+    const visualY = unitY * clampedMag * 44;
+    knobRef.current.style.transform = `translate(calc(-50% + ${visualX}px), calc(-50% + ${visualY}px))`;
 
-    // Dead zone for clean idle & smooth response curve
+    // Dead zone for clean idle & smooth non-linear response
     const DEADZONE = 0.12;
-    if (mag < DEADZONE) {
+    if (clampedMag < DEADZONE) {
       if (engine) engine.input.joy = { x: 0, y: 0 };
     } else {
-      const scaledMag = (mag - DEADZONE) / (1 - DEADZONE);
-      const nx = (dx / (mag || 1)) * scaledMag;
-      const ny = (dy / (mag || 1)) * scaledMag;
+      // Smooth non-linear curve: fine precision when sneaking, brisk running at edge
+      const normalizedMag = (clampedMag - DEADZONE) / (1 - DEADZONE);
+      const smoothMag = normalizedMag * 0.7 + normalizedMag * normalizedMag * 0.3;
+      const nx = unitX * smoothMag;
+      const ny = unitY * smoothMag;
       if (engine) engine.input.joy = { x: nx, y: -ny };
     }
   };
@@ -47,16 +74,22 @@ export function Joystick({ engine }: { engine: Engine | null }) {
   const endJoystick = (e?: React.PointerEvent) => {
     if (e && joyPointerId.current !== null && e.pointerId !== joyPointerId.current) return;
     joyPointerId.current = null;
-    setKnob({ x: 0, y: 0 });
+    if (knobRef.current) {
+      knobRef.current.style.transform = "translate(-50%, -50%)";
+    }
     if (engine) engine.input.joy = { x: 0, y: 0 };
   };
 
-  // ── Touch Camera Drag Handler ──────────────────────────────────────
+  // ── 2. Touch Camera Drag Handler ──────────────────────────────────
   const handleCamStart = (e: React.PointerEvent) => {
     if (camPointerId.current !== null) return;
     camPointerId.current = e.pointerId;
     camLastPos.current = { x: e.clientX, y: e.clientY };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignored if capture unsupported
+    }
   };
 
   const handleCamMove = (e: React.PointerEvent) => {
@@ -65,8 +98,8 @@ export function Joystick({ engine }: { engine: Engine | null }) {
     const deltaY = e.clientY - camLastPos.current.y;
     camLastPos.current = { x: e.clientX, y: e.clientY };
 
-    const SENSITIVITY = 0.0055;
-    engine.addCameraLook(-deltaX * SENSITIVITY, -deltaY * SENSITIVITY);
+    // Rotate camera smoothly around mouse
+    engine.addCameraLook(-deltaX * TOUCH_CAMERA_SENSITIVITY, -deltaY * TOUCH_CAMERA_SENSITIVITY);
   };
 
   const handleCamEnd = (e: React.PointerEvent) => {
@@ -77,32 +110,38 @@ export function Joystick({ engine }: { engine: Engine | null }) {
 
   return (
     <div className="pointer-events-none absolute inset-0 select-none overflow-hidden touch-none md:hidden">
-      {/* Right side touch drag surface for camera orbit */}
+      {/* Right side touch drag surface for camera orbit (z-10, lower than buttons) */}
       <div
         className="pointer-events-auto absolute inset-y-0 right-0 w-1/2 touch-none"
-        style={{ zIndex: 5 }}
+        style={{ zIndex: 10 }}
+        aria-label="camera look surface"
         onPointerDown={handleCamStart}
         onPointerMove={handleCamMove}
         onPointerUp={handleCamEnd}
         onPointerCancel={handleCamEnd}
+        onLostPointerCapture={handleCamEnd}
       />
 
-      {/* Left side: Analog movement joystick */}
+      {/* Left side: Analog movement joystick with ergonomic thumb base */}
       <div
         style={{
           position: "absolute",
           left: "max(1.5rem, env(safe-area-inset-left, 0px))",
           bottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
-          zIndex: 10,
+          zIndex: 20,
         }}
-        className="pointer-events-auto"
+        className="pointer-events-auto select-none touch-none"
       >
         <div
           ref={baseRef}
-          className="joystick-base relative h-32 w-32 touch-none rounded-full"
+          className="joystick-base relative h-32 w-32 touch-none rounded-full flex items-center justify-center shadow-2xl"
           onPointerDown={(e) => {
             joyPointerId.current = e.pointerId;
-            e.currentTarget.setPointerCapture(e.pointerId);
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+              // Ignore
+            }
             updateJoystick(e.clientX, e.clientY);
           }}
           onPointerMove={(e) => {
@@ -112,66 +151,113 @@ export function Joystick({ engine }: { engine: Engine | null }) {
           }}
           onPointerUp={endJoystick}
           onPointerCancel={endJoystick}
+          onLostPointerCapture={endJoystick}
         >
+          {/* Subtle directional crosshair indicator */}
+          <div className="absolute inset-3 rounded-full border border-white/10 pointer-events-none" />
+
+          {/* Thumb Knob */}
           <div
-            className="joystick-knob absolute left-1/2 top-1/2 h-14 w-14 rounded-full transition-transform duration-75"
+            ref={knobRef}
+            className="joystick-knob absolute left-1/2 top-1/2 h-14 w-14 rounded-full pointer-events-none"
             style={{
-              transform: `translate(calc(-50% + ${knob.x * 42}px), calc(-50% + ${knob.y * 42}px))`,
+              transform: "translate(-50%, -50%)",
+              transition: "transform 0.05s linear",
             }}
           />
         </div>
       </div>
 
-      {/* Right side: Jump & Sprint Thumb Controls */}
+      {/* Right side: Ergonomic Action Buttons (Jump & Sprint in natural thumb arc) */}
       <div
         style={{
           position: "absolute",
           right: "max(1.5rem, env(safe-area-inset-right, 0px))",
           bottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
-          zIndex: 10,
+          zIndex: 25,
         }}
-        className="pointer-events-auto flex items-end gap-3.5"
+        className="pointer-events-auto flex items-end gap-3.5 select-none touch-none"
       >
-        {/* Sprint Button (Hold to Sprint) */}
+        {/* Hold-to-Sprint Button (Upper-Left of Jump in thumb arc) */}
         <button
-          className={`btn-touch-action h-16 w-16 text-xs transition-colors ${
+          className={`btn-touch-action h-16 w-16 text-xs transition-all ${
             isSprinting
-              ? "bg-amber-400 text-stone-900 shadow-md ring-2 ring-amber-300 scale-95"
-              : "bg-stone-800/80 text-amber-200/90 border border-amber-300/30 shadow-lg backdrop-blur-sm"
+              ? "bg-amber-400 text-stone-900 shadow-md ring-4 ring-amber-300/80 scale-95"
+              : "bg-stone-900/80 text-amber-200/90 border-2 border-amber-300/40 shadow-xl backdrop-blur-md"
           }`}
           aria-label="Hold to sprint"
           onPointerDown={(e) => {
             e.stopPropagation();
+            sprintPointerId.current = e.pointerId;
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+              // Ignore
+            }
             setIsSprinting(true);
             if (engine) engine.input.sprint = true;
           }}
           onPointerUp={(e) => {
             e.stopPropagation();
-            setIsSprinting(false);
-            if (engine) engine.input.sprint = false;
+            if (sprintPointerId.current === e.pointerId) {
+              sprintPointerId.current = null;
+              setIsSprinting(false);
+              if (engine) engine.input.sprint = false;
+            }
           }}
-          onPointerCancel={() => {
-            setIsSprinting(false);
-            if (engine) engine.input.sprint = false;
+          onPointerCancel={(e) => {
+            if (sprintPointerId.current === e.pointerId) {
+              sprintPointerId.current = null;
+              setIsSprinting(false);
+              if (engine) engine.input.sprint = false;
+            }
+          }}
+          onLostPointerCapture={(e) => {
+            if (sprintPointerId.current === e.pointerId) {
+              sprintPointerId.current = null;
+              setIsSprinting(false);
+              if (engine) engine.input.sprint = false;
+            }
           }}
         >
-          <span className="text-base leading-none">⚡</span>
-          <span className="mt-0.5 font-bold tracking-wide">Sprint</span>
+          <span className="text-lg leading-none">⚡</span>
+          <span className="mt-0.5 font-bold tracking-wide text-[0.7rem]">Sprint</span>
         </button>
 
-        {/* Jump Button (Tap to Jump) */}
+        {/* Jump Button (Primary thumb button, large and immediate feedback) */}
         <button
-          className="btn-touch-action h-20 w-20 bg-amber-500 text-stone-900 border-2 border-amber-300 shadow-xl"
+          className={`btn-touch-action h-20 w-20 border-2 text-stone-900 transition-all ${
+            isJumping
+              ? "bg-amber-400 border-amber-200 scale-95 shadow-inner"
+              : "bg-amber-500 border-amber-300 shadow-2xl"
+          }`}
           style={{
-            boxShadow: "0 4px 0 oklch(0.7 0.15 70), 0 6px 14px rgba(0,0,0,0.3)",
+            boxShadow: isJumping
+              ? "none"
+              : "0 5px 0 oklch(0.7 0.15 70), 0 8px 18px rgba(0,0,0,0.35)",
           }}
           aria-label="Jump"
           onPointerDown={(e) => {
             e.stopPropagation();
+            jumpPointerId.current = e.pointerId;
+            setIsJumping(true);
             if (engine) engine.input.triggerJump();
           }}
+          onPointerUp={(e) => {
+            e.stopPropagation();
+            setIsJumping(false);
+            jumpPointerId.current = null;
+          }}
+          onPointerCancel={() => {
+            setIsJumping(false);
+            jumpPointerId.current = null;
+          }}
+          onLostPointerCapture={() => {
+            setIsJumping(false);
+            jumpPointerId.current = null;
+          }}
         >
-          <span className="text-xl leading-none">🐾</span>
+          <span className="text-2xl leading-none">🐾</span>
           <span className="mt-0.5 text-sm font-bold tracking-wide">Jump</span>
         </button>
       </div>
