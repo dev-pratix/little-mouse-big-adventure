@@ -109,8 +109,11 @@ export class Engine {
     window.addEventListener("keydown", this.onKeyDown);
 
     // Cursor tracking for mouse head look (when not pointer locked)
+    // Only desktop mouse events drive head look; touch/pen events are excluded to prevent touch gestures
+    // or virtual controls from hijacking mouse orientation.
     this.onPointerMove = (e: PointerEvent) => {
       if (this.pointerLocked) return;
+      if (e.pointerType && e.pointerType !== "mouse") return;
       const rect = this.renderer.domElement.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
       if (
@@ -172,6 +175,9 @@ export class Engine {
     };
     window.addEventListener("orientationchange", this.onOrientationChange);
     window.addEventListener("resize", this.onOrientationChange);
+    if (typeof screen !== "undefined" && screen.orientation && "addEventListener" in screen.orientation) {
+      screen.orientation.addEventListener("change", this.onOrientationChange);
+    }
 
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(host);
@@ -304,6 +310,9 @@ export class Engine {
     this.unsub();
     window.removeEventListener("orientationchange", this.onOrientationChange);
     window.removeEventListener("resize", this.onOrientationChange);
+    if (typeof screen !== "undefined" && screen.orientation && "removeEventListener" in screen.orientation) {
+      screen.orientation.removeEventListener("change", this.onOrientationChange);
+    }
     window.removeEventListener("pointermove", this.onPointerMove);
     this.renderer.domElement.removeEventListener("pointerleave", this.onPointerLeave);
     this.renderer.domElement.removeEventListener("click", this.onCanvasClick);

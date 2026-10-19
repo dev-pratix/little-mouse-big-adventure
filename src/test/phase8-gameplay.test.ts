@@ -145,7 +145,7 @@ describe("Phase 8 — Gameplay Foundation: Movement, Hiding & Mission Flow", () 
   });
 
   describe("Mission Flow & Victory State", () => {
-    it("handles full heist mission lifecycle: collect 3 cheeses, return home, victory", () => {
+    it("handles full heist mission lifecycle: collect all cheeses, return home, victory", () => {
       const store = createStore();
       expect(store.get().phase).toBe("title");
 
@@ -153,13 +153,12 @@ describe("Phase 8 — Gameplay Foundation: Movement, Hiding & Mission Flow", () 
       expect(store.get().phase).toBe("playing");
       expect(store.get().cheese).toBe(0);
 
-      // Collect 3 cheeses
-      store.collect();
-      expect(store.get().cheese).toBe(1);
-      store.collect();
-      expect(store.get().cheese).toBe(2);
-      store.collect();
-      expect(store.get().cheese).toBe(3);
+      // Collect all cheeses
+      const total = store.get().total;
+      for (let i = 0; i < total; i++) {
+        store.collect();
+      }
+      expect(store.get().cheese).toBe(total);
       expect(store.get().cheese >= store.get().total).toBe(true);
 
       // In the open room, mission is not complete yet

@@ -1,6 +1,12 @@
 // Procedural Web Audio effects: cheese collection chimes & mission victory fanfare.
 // Fully self-contained — no audio asset downloads required, zero latency.
 
+/**
+ * Early Access build: all gameplay sound is disabled for this release.
+ * Preserved for future releases without deleting existing audio implementation.
+ */
+export const AUDIO_ENABLED = false;
+
 class SoundFX {
   private ctx: AudioContext | null = null;
   private muted = false;
@@ -22,6 +28,7 @@ class SoundFX {
   }
 
   private getContext(): AudioContext | null {
+    if (!AUDIO_ENABLED) return null;
     if (typeof window === "undefined") return null;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -40,7 +47,7 @@ class SoundFX {
    * Pitches rise progressively with each cheese collected (1, 2, 3).
    */
   playCheesePickup(count: number) {
-    if (this.muted) return;
+    if (!AUDIO_ENABLED || this.muted) return;
     const ctx = this.getContext();
     if (!ctx) return;
 
@@ -75,7 +82,7 @@ class SoundFX {
    * Triumphant victory fanfare when completing the heist at the mouse burrow.
    */
   playVictoryFanfare() {
-    if (this.muted) return;
+    if (!AUDIO_ENABLED || this.muted) return;
     const ctx = this.getContext();
     if (!ctx) return;
 

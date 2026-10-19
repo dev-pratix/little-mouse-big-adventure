@@ -72,6 +72,7 @@ export function Joystick({ engine }: { engine: Engine | null }) {
   };
 
   const endJoystick = (e?: React.PointerEvent) => {
+    if (e) e.stopPropagation();
     if (e && joyPointerId.current !== null && e.pointerId !== joyPointerId.current) return;
     joyPointerId.current = null;
     if (knobRef.current) {
@@ -109,7 +110,10 @@ export function Joystick({ engine }: { engine: Engine | null }) {
   };
 
   return (
-    <div className="pointer-events-none absolute inset-0 select-none overflow-hidden touch-none md:hidden">
+    <div
+      className="pointer-events-none absolute inset-0 select-none overflow-hidden touch-none"
+      style={{ zIndex: 30 }}
+    >
       {/* Right side touch drag surface for camera orbit (z-10, lower than buttons) */}
       <div
         className="pointer-events-auto absolute inset-y-0 right-0 w-1/2 touch-none"
@@ -136,6 +140,7 @@ export function Joystick({ engine }: { engine: Engine | null }) {
           ref={baseRef}
           className="joystick-base relative h-32 w-32 touch-none rounded-full flex items-center justify-center shadow-2xl"
           onPointerDown={(e) => {
+            e.stopPropagation();
             joyPointerId.current = e.pointerId;
             try {
               e.currentTarget.setPointerCapture(e.pointerId);
@@ -146,6 +151,7 @@ export function Joystick({ engine }: { engine: Engine | null }) {
           }}
           onPointerMove={(e) => {
             if (joyPointerId.current === e.pointerId) {
+              e.stopPropagation();
               updateJoystick(e.clientX, e.clientY);
             }
           }}
@@ -240,6 +246,11 @@ export function Joystick({ engine }: { engine: Engine | null }) {
           onPointerDown={(e) => {
             e.stopPropagation();
             jumpPointerId.current = e.pointerId;
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+              // Ignore
+            }
             setIsJumping(true);
             if (engine) engine.input.triggerJump();
           }}

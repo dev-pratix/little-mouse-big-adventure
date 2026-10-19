@@ -28,9 +28,11 @@ export const HOLE = { x: -5.0, w: 0.40, h: 0.38 };
 export const NOOK = { minX: -6.00, maxX: -4.00, minZ: -8.40, maxZ: -6.80, h: 0.70 };
 export const START = { x: -5.0, z: -7.60, yaw: 0 };
 export const CHEESE_SPOTS: [number, number][] = [
-  [4.50, -2.40], // Study beside desk
-  [5.50, -5.50], // Study corner plant
-  [-6.00, 5.00], // Library reading corner
+  [4.50, -2.40],  // Study beside desk
+  [5.50, -5.50],  // Study corner plant
+  [-6.00, 5.00],  // Library reading corner
+  [-4.80, -2.20], // Living Room conversation rug / lounge
+  [5.60, 4.50],   // Bedroom under double bed
 ];
 
 export function isHome(x: number, z: number) {
