@@ -51,8 +51,8 @@ function enhanceModelMaterials(root: THREE.Object3D) {
           if (name.includes("wood")) {
             m.roughness = 0.46;
             m.metalness = 0.04;
-          } else if (name.includes("carpet") || name.includes("fabric")) {
-            m.roughness = 0.88;
+          } else if (name.includes("carpet") || name.includes("fabric") || name.includes("bear") || name.includes("toy")) {
+            m.roughness = 0.92;
             m.metalness = 0.0;
           } else if (name.includes("metal")) {
             if (name.includes("dark")) {
@@ -423,6 +423,13 @@ export async function loadFurniture(
   await add(FURN + "pottedPlant.glb",
     7.20, -5.80, 0, 2.5,
     7.20, -5.80, 0.50, 0.50);
+
+  // ── 5. MINIATURE COMPANION IN MOUSE BURROW ─────────────────────────────────
+  // Tiny stuffed teddy bear resting on the matchbox bed (West burrow nook)
+  // Scaled down to mouse scale (~0.18 - 0.20), tucked cozily against the pillow.
+  await add(FURN + "bear.glb",
+    -5.58, -7.56, Math.PI / 4, 0.18,
+    0, 0, 0, 0, 0.14);
 
   return {
     colliders,

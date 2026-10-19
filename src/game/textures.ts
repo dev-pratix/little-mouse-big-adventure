@@ -271,6 +271,323 @@ export function framedArtTexture() {
   return t;
 }
 
+/**
+ * Rustic aged pine planks for mouse burrow walls and flooring.
+ */
+export function burrowPlanksTexture(repeat = 2) {
+  return canvasTex(512, (g, s) => {
+    const r = rng(101);
+    const planks = 6;
+    const h = s / planks;
+    for (let i = 0; i < planks; i++) {
+      const y0 = i * h;
+      const lum = 38 + r() * 10;
+      g.fillStyle = `hsl(28, 45%, ${lum}%)`;
+      g.fillRect(0, y0, s, h);
+
+      // Fine wood grain
+      for (let k = 0; k < 30; k++) {
+        const gy = y0 + r() * h;
+        g.strokeStyle = `hsla(26, 40%, ${lum - 8}%, 0.22)`;
+        g.lineWidth = 1 + r() * 1.5;
+        g.beginPath();
+        g.moveTo(0, gy);
+        g.bezierCurveTo(s * 0.3, gy + (r() - 0.5) * 5, s * 0.7, gy + (r() - 0.5) * 5, s, gy);
+        g.stroke();
+      }
+
+      // Plank bevel seam
+      g.fillStyle = "rgba(25, 12, 6, 0.85)";
+      g.fillRect(0, y0 + h - 2, s, 2);
+      g.fillStyle = "rgba(255, 230, 190, 0.15)";
+      g.fillRect(0, y0, s, 1);
+
+      // Iron nail heads near edges
+      g.fillStyle = "#2b221a";
+      g.beginPath();
+      g.arc(20 + (i % 2) * 15, y0 + h / 2, 2.5, 0, Math.PI * 2);
+      g.arc(s - 20 - ((i + 1) % 2) * 15, y0 + h / 2, 2.5, 0, Math.PI * 2);
+      g.fill();
+    }
+  }, repeat);
+}
+
+/**
+ * Vintage retro matchbox printed cover graphic with side strike strip.
+ */
+export function matchboxCoverTexture() {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 320;
+  const g = c.getContext("2d")!;
+
+  // Aged kraft cardboard paper base
+  g.fillStyle = "#d2b48c";
+  g.fillRect(0, 0, 512, 320);
+
+  // Subtle paper grain
+  g.fillStyle = "rgba(80, 50, 20, 0.05)";
+  for (let i = 0; i < 400; i++) {
+    g.fillRect(Math.random() * 512, Math.random() * 320, 2, 2);
+  }
+
+  // Classic retro red banner
+  g.fillStyle = "#c0392b";
+  g.fillRect(20, 20, 472, 280);
+
+  // Inner cream label panel
+  g.fillStyle = "#faf0db";
+  g.fillRect(36, 36, 440, 248);
+
+  // Decorative border
+  g.strokeStyle = "#c0392b";
+  g.lineWidth = 4;
+  g.strokeRect(44, 44, 424, 232);
+  g.lineWidth = 1.5;
+  g.strokeRect(50, 50, 412, 220);
+
+  // Vintage Swan / Bird matchbox silhouette
+  g.fillStyle = "#2c3e50";
+  g.beginPath();
+  g.arc(256, 120, 36, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#faf0db";
+  g.beginPath();
+  // Stylized swan wing & neck
+  g.moveTo(242, 135);
+  g.bezierCurveTo(240, 110, 255, 95, 270, 100);
+  g.bezierCurveTo(260, 120, 250, 130, 242, 135);
+  g.fill();
+
+  // Retro Typography
+  g.fillStyle = "#c0392b";
+  g.font = "bold 28px serif";
+  g.textAlign = "center";
+  g.fillText("SWAN SAFETY MATCHES", 256, 195);
+
+  g.fillStyle = "#2c3e50";
+  g.font = "bold 15px sans-serif";
+  g.letterSpacing = "2px";
+  g.fillText("MADE IN THE BURROW", 256, 225);
+
+  g.font = "11px sans-serif";
+  g.fillStyle = "#7f8c8d";
+  g.fillText("AVERAGE CONTENTS 50 LIGHTS", 256, 252);
+
+  // Strike strip along bottom
+  g.fillStyle = "#4a2c1d";
+  g.fillRect(0, 305, 512, 15);
+  g.fillStyle = "#331c12";
+  for (let x = 0; x < 512; x += 6) {
+    g.fillRect(x, 305, 3, 15);
+  }
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * Cozy patchwork diamond quilt for the matchbox bed blanket.
+ */
+export function matchboxBlanketTexture() {
+  return canvasTex(256, (g, s) => {
+    // Rich warm terracotta base
+    g.fillStyle = "#b84734";
+    g.fillRect(0, 0, s, s);
+
+    // Warm ochre & cream quilt stitching
+    g.strokeStyle = "#e8c888";
+    g.lineWidth = 2;
+    for (let x = -s; x < s * 2; x += 32) {
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x + s, s);
+      g.stroke();
+
+      g.beginPath();
+      g.moveTo(x, s);
+      g.lineTo(x + s, 0);
+      g.stroke();
+    }
+
+    // Cozy stitched polka dots at diamond centers
+    g.fillStyle = "#f4e0bc";
+    for (let y = 16; y < s; y += 32) {
+      for (let x = 16; x < s; x += 32) {
+        g.beginPath();
+        g.arc(x, y, 2.5, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+  }, 2);
+}
+
+/**
+ * Colorful circular braided patchwork rag rug for the living area floor.
+ */
+export function patchworkRugTexture() {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 512;
+  const g = c.getContext("2d")!;
+  const center = 256;
+
+  // Concentric braided braided rings
+  const rings = [
+    { r: 240, color: "#d97443" }, // outer terracotta
+    { r: 210, color: "#f3cc77" }, // warm sunflower
+    { r: 180, color: "#4f8a8b" }, // dusty teal
+    { r: 150, color: "#b85252" }, // berry red
+    { r: 120, color: "#e8dcbe" }, // natural linen
+    { r: 90, color: "#5b8266" },  // sage green
+    { r: 60, color: "#d97443" },  // inner terracotta
+    { r: 30, color: "#f3cc77" },  // gold center
+  ];
+
+  rings.forEach(({ r, color }) => {
+    g.fillStyle = color;
+    g.beginPath();
+    g.arc(center, center, r, 0, Math.PI * 2);
+    g.fill();
+
+    // Braided stitch dashes
+    g.strokeStyle = "rgba(0,0,0,0.22)";
+    g.lineWidth = 3;
+    g.setLineDash([6, 6]);
+    g.beginPath();
+    g.arc(center, center, r - 8, 0, Math.PI * 2);
+    g.stroke();
+    g.setLineDash([]);
+  });
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * Wound sewing thread spool core texture (embroidery floss).
+ */
+export function threadSpoolTexture() {
+  return canvasTex(256, (g, s) => {
+    g.fillStyle = "#1e6b7b"; // deep teal embroidery floss
+    g.fillRect(0, 0, s, s);
+
+    // Fine horizontal thread lines
+    for (let y = 0; y < s; y += 3) {
+      g.fillStyle = y % 6 === 0 ? "rgba(255, 255, 255, 0.18)" : "rgba(0, 0, 0, 0.25)";
+      g.fillRect(0, y, s, 1.2);
+    }
+  }, 1);
+}
+
+/**
+ * Miniature framed portrait: whimsical mouse crayon sketch of cheese with a heart.
+ */
+export function miniPortraitTexture() {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 256;
+  const g = c.getContext("2d")!;
+
+  // Aged parchment paper background
+  g.fillStyle = "#faf2dc";
+  g.fillRect(0, 0, 256, 256);
+
+  // Hand-drawn sketch of golden cheese wedge
+  g.fillStyle = "#f5b027";
+  g.beginPath();
+  g.moveTo(60, 180);
+  g.lineTo(196, 180);
+  g.lineTo(170, 90);
+  g.lineTo(86, 115);
+  g.closePath();
+  g.fill();
+
+  g.strokeStyle = "#b87314";
+  g.lineWidth = 4;
+  g.lineJoin = "round";
+  g.stroke();
+
+  // Cheese eyes / holes
+  g.fillStyle = "#df971a";
+  const cheeseHoles: [number, number, number][] = [
+    [105, 150, 12],
+    [145, 140, 16],
+    [120, 125, 8],
+    [165, 160, 10],
+  ];
+  for (const [x, y, r] of cheeseHoles) {
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  // Tiny red crayon heart above cheese
+  g.fillStyle = "#e74c3c";
+  g.beginPath();
+  g.moveTo(128, 65);
+  g.bezierCurveTo(128, 55, 115, 45, 105, 55);
+  g.bezierCurveTo(95, 65, 105, 80, 128, 92);
+  g.bezierCurveTo(151, 80, 161, 65, 151, 55);
+  g.bezierCurveTo(141, 45, 128, 55, 128, 65);
+  g.fill();
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * Cancelled vintage postage stamp used as a tablecloth / runner on the spool.
+ */
+export function stampTableclothTexture() {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 256;
+  const g = c.getContext("2d")!;
+
+  // Perforated stamp edge
+  g.fillStyle = "#fbf5e6";
+  g.fillRect(10, 10, 236, 236);
+
+  // Green intaglio engraved stamp panel
+  g.fillStyle = "#2d6a4f";
+  g.fillRect(24, 24, 208, 208);
+
+  // Inner frame
+  g.strokeStyle = "#fbf5e6";
+  g.lineWidth = 3;
+  g.strokeRect(34, 34, 188, 188);
+
+  // Denomination and motif
+  g.fillStyle = "#fbf5e6";
+  g.font = "bold 42px serif";
+  g.textAlign = "center";
+  g.fillText("2¢", 128, 125);
+
+  g.font = "bold 16px sans-serif";
+  g.fillText("POSTAGE", 128, 165);
+
+  // Wavy black cancellation ink mark
+  g.strokeStyle = "rgba(20, 20, 20, 0.45)";
+  g.lineWidth = 3;
+  g.beginPath();
+  g.arc(180, 70, 45, 0, Math.PI * 2);
+  g.stroke();
+  for (let i = 0; i < 3; i++) {
+    g.beginPath();
+    g.moveTo(40, 180 + i * 12);
+    g.bezierCurveTo(90, 170 + i * 12, 150, 190 + i * 12, 220, 180 + i * 12);
+    g.stroke();
+  }
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export function rug() {
   return canvasTex(256, (g, s) => {
     g.fillStyle = "#b5523b";

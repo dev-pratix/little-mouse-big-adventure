@@ -5,7 +5,20 @@
 // nook, skirting, window, cheese spots, home marker, and all colliders.
 import * as THREE from "three";
 import { box, platform, type Box, type Platform } from "./collision";
-import { framedArtTexture, wallpaper, woodFloor, woodFloorBump, woodFloorRoughness } from "./textures";
+import {
+  burrowPlanksTexture,
+  framedArtTexture,
+  matchboxBlanketTexture,
+  matchboxCoverTexture,
+  miniPortraitTexture,
+  patchworkRugTexture,
+  stampTableclothTexture,
+  threadSpoolTexture,
+  wallpaper,
+  woodFloor,
+  woodFloorBump,
+  woodFloorRoughness,
+} from "./textures";
 
 export const ROOM = { minX: -8.0, maxX: 8.0, minZ: -6.5, maxZ: 6.5, h: 9.0 };
 export const HOLE = { x: -5.0, w: 0.40, h: 0.38 };
@@ -315,13 +328,17 @@ export function buildWorld(scene: THREE.Scene): World {
     maxZ: ROOM.maxZ + 1,
   });
 
-  // ── Mouse home (compact, cosy nest behind the discreet mouse hole) ──
+  // ── Mouse home (Cozy Miniature Mouse Burrow behind the discreet mouse hole) ──
   const n = NOOK;
   const nw = n.maxX - n.minX, nd = n.maxZ - n.minZ;
-  const nookM = mat("#c99a6b", { side: THREE.DoubleSide, roughness: 1 });
   const ncx = (n.minX + n.maxX) / 2, ncz = (n.minZ + n.maxZ) / 2;
+
+  // 1. Burrow rustic timber walls & ceiling
+  const burrowWallTex = burrowPlanksTexture(2);
+  const burrowWallM = mat("#825432", { map: burrowWallTex, roughness: 0.9, side: THREE.DoubleSide });
+
   const plane = (w: number, h: number, x: number, y: number, z: number, rx: number, ry: number) => {
-    const p = mesh(new THREE.PlaneGeometry(w, h), nookM, x, y, z, false);
+    const p = mesh(new THREE.PlaneGeometry(w, h), burrowWallM, x, y, z, false);
     p.receiveShadow = false;
     p.rotation.set(rx, ry, 0);
     g.add(p);
@@ -331,19 +348,35 @@ export function buildWorld(scene: THREE.Scene): World {
   plane(nd, n.h, n.maxX, n.h / 2, ncz, 0, Math.PI / 2); // right wall at x = -4.15
   plane(nw, nd, ncx, n.h, ncz, Math.PI / 2, 0); // low ceiling at y = 0.70
 
-  // Nest floor: stays strictly within nest boundary [Z: -8.00 to -6.80]
+  // Exposed subfloor timber joists overhead (Y = 0.68)
+  const joistM = mat("#4a2c16", { roughness: 0.85 });
+  for (const jz of [-7.75, -7.40, -7.05]) {
+    g.add(mesh(new THREE.BoxGeometry(nw - 0.04, 0.04, 0.06), joistM, ncx, n.h - 0.02, jz, false));
+  }
+
+  // Burrow floor: stays strictly within nest boundary [Z: -8.00 to -6.80]
+  const burrowFloorTex = burrowPlanksTexture(2);
   const nfloor = mesh(
     new THREE.PlaneGeometry(nw, nd),
-    mat("#9e6b44"),
+    mat("#764728", { map: burrowFloorTex, roughness: 0.8 }),
     ncx, 0.003, ncz, false,
   );
   nfloor.rotation.x = -Math.PI / 2;
   g.add(nfloor);
 
+  // Colorful braided patchwork rag rug in center of living space
+  const patchRug = mesh(
+    new THREE.CircleGeometry(0.36, 32),
+    mat("#ffffff", { map: patchworkRugTexture(), roughness: 0.95 }),
+    -4.95, 0.005, -7.38, false,
+  );
+  patchRug.rotation.x = -Math.PI / 2;
+  g.add(patchRug);
+
   // Entrance threshold: seamlessly bridges the 0.30m wall thickness between nest and room
   const threshold = mesh(
     new THREE.PlaneGeometry(HOLE.w, 0.30),
-    mat("#8a5a36"),
+    mat("#5c361c", { roughness: 0.75 }),
     HOLE.x, 0.002, -6.65, false,
   );
   threshold.rotation.x = -Math.PI / 2;
@@ -355,35 +388,179 @@ export function buildWorld(scene: THREE.Scene): World {
     { minX: n.minX - 1, maxX: n.maxX + 1, minZ: n.minZ - 1, maxZ: n.minZ },
   );
 
-  // Matchbox bed (cosy sleeping nook along left wall)
-  g.add(mesh(new THREE.BoxGeometry(0.55, 0.14, 0.35), mat("#d8473b"), -5.50, 0.07, -7.50));
-  g.add(mesh(new THREE.BoxGeometry(0.50, 0.05, 0.32), mat("#f1d9a6"), -5.50, 0.165, -7.50));
-  g.add(mesh(new THREE.BoxGeometry(0.16, 0.06, 0.24), mat("#ffffff"), -5.66, 0.21, -7.50));
-  colliders.push(box(-5.50, -7.50, 0.55, 0.35));
+  // 2. Sleeping Nook (West / Left alcove: X ~ -5.50, Z ~ -7.50)
+  // Vintage Matchbox Bed: outer slide sleeve as headboard + slid-out cardboard tray
+  const kraftM = mat("#c8a87b", { roughness: 0.85 });
+  const matchCoverM = mat("#ffffff", { map: matchboxCoverTexture(), roughness: 0.8 });
+  const woodMatchM = mat("#ebd0a0", { roughness: 0.6 });
+  const sulfurM = mat("#ba2c1f", { roughness: 0.5 });
 
-  // Spool table & thimble lamp (eating & study nook along right wall)
-  g.add(mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.03, 16), mat("#d9b07a"), -4.50, 0.245, -7.50));
-  g.add(mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.20, 12), mat("#5b88a8"), -4.50, 0.13, -7.50));
-  g.add(mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.03, 16), mat("#d9b07a"), -4.50, 0.015, -7.50));
-  colliders.push(box(-4.50, -7.50, 0.32, 0.32));
+  // Matchbox sleeve stood up as headboard (back edge at X = -5.72)
+  const headboard = mesh(new THREE.BoxGeometry(0.04, 0.28, 0.36), matchCoverM, -5.72, 0.16, -7.50);
+  headboard.rotation.z = -0.06;
+  g.add(headboard);
 
-  // Bottle-cap stool
-  g.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 14), mat("#c9302c", { metalness: 0.5, roughness: 0.4 }), -4.50, 0.03, -7.15));
+  // Slide-out inner cardboard tray
+  g.add(mesh(new THREE.BoxGeometry(0.44, 0.08, 0.32), kraftM, -5.48, 0.065, -7.50));
 
-  // Thimble lamp (atop spool table)
-  g.add(mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.10, 12), mat("#c0c0c0", { metalness: 0.7, roughness: 0.3 }), -4.42, 0.31, -7.50));
-  g.add(mesh(new THREE.SphereGeometry(0.045, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffd27a" }), -4.42, 0.40, -7.50, false));
-  const lamp = new THREE.PointLight("#ffbe60", 1.8, 2.8, 1.4);
-  lamp.position.set(-4.50, 0.45, -7.45);
+  // 4 Matchstick bedpost legs with red sulfur tips
+  for (const [mx, mz] of [[-5.68, -7.64], [-5.28, -7.64], [-5.68, -7.36], [-5.28, -7.36]]) {
+    g.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.05, 8), woodMatchM, mx, 0.025, mz));
+    g.add(mesh(new THREE.SphereGeometry(0.014, 8, 6), sulfurM, mx, 0.006, mz));
+  }
+
+  // Padded cream cotton mattress inside tray
+  g.add(mesh(new THREE.BoxGeometry(0.42, 0.05, 0.30), mat("#fbf5ea"), -5.48, 0.11, -7.50));
+
+  // Cozy diamond-quilted patchwork blanket with turned-down white cuff
+  const quiltM = mat("#ffffff", { map: matchboxBlanketTexture(), roughness: 0.9 });
+  g.add(mesh(new THREE.BoxGeometry(0.28, 0.035, 0.31), quiltM, -5.41, 0.14, -7.50));
+  g.add(mesh(new THREE.BoxGeometry(0.05, 0.038, 0.31), mat("#ffffff"), -5.57, 0.14, -7.50));
+
+  // Plump cotton pillow
+  const pillowM = mat("#fcf9f2", { roughness: 0.9 });
+  g.add(mesh(new THREE.BoxGeometry(0.10, 0.05, 0.24), pillowM, -5.63, 0.16, -7.50));
+
+  // Bedside Reading Candle (tiny metal washer + birthday candle stub with glowing wick)
+  const washerM = mat("#a0a0a0", { metalness: 0.8, roughness: 0.3 });
+  g.add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.008, 12), washerM, -5.68, 0.004, -7.22));
+  g.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.045, 10), mat("#f03434"), -5.68, 0.03, -7.22));
+  g.add(mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.015, 6), mat("#222222"), -5.68, 0.055, -7.22));
+  g.add(mesh(new THREE.SphereGeometry(0.008, 8, 6), new THREE.MeshBasicMaterial({ color: "#ffe066" }), -5.68, 0.065, -7.22, false));
+
+  colliders.push(box(-5.50, -7.50, 0.48, 0.36));
+
+  // 3. Living Area (East / Right alcove: X ~ -4.50, Z ~ -7.50)
+  // Wooden Thread Spool Table
+  const spoolWoodM = mat("#a37446", { roughness: 0.55 });
+  const spoolThreadM = mat("#ffffff", { map: threadSpoolTexture(), roughness: 0.7 });
+
+  // Top flange with center spindle hole
+  g.add(mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.02, 24), spoolWoodM, -4.50, 0.23, -7.50));
+  g.add(mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.022, 12), mat("#2e1c0c"), -4.50, 0.231, -7.50));
+  // Thread core
+  g.add(mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.17, 20), spoolThreadM, -4.50, 0.135, -7.50));
+  // Bottom flange
+  g.add(mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.02, 24), spoolWoodM, -4.50, 0.01, -7.50));
+
+  // Postage stamp runner atop spool table
+  const stampM = mat("#ffffff", { map: stampTableclothTexture(), roughness: 0.85 });
+  const stampRunner = mesh(new THREE.PlaneGeometry(0.16, 0.16), stampM, -4.50, 0.242, -7.50, false);
+  stampRunner.rotation.x = -Math.PI / 2;
+  stampRunner.rotation.z = Math.PI / 6;
+  g.add(stampRunner);
+
+  // Tiny acorn teacup atop stamp runner
+  g.add(mesh(new THREE.SphereGeometry(0.022, 10, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), mat("#4a2c14"), -4.45, 0.252, -7.45));
+
+  // Thimble Lamp (mounted beside spool with bent brass arm)
+  const brassM = mat("#d4af37", { metalness: 0.85, roughness: 0.25 });
+  const thimbleM = mat("#dcdcdc", { metalness: 0.92, roughness: 0.20 });
+  // Wooden button base
+  g.add(mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.012, 16), mat("#3d220f"), -4.34, 0.246, -7.58));
+  // Slender curved brass arm
+  const arm = mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.10, 8), brassM, -4.36, 0.295, -7.56);
+  arm.rotation.z = -0.2;
+  g.add(arm);
+  // Dimpled silver thimble shade
+  g.add(mesh(new THREE.CylinderGeometry(0.032, 0.046, 0.065, 16), thimbleM, -4.40, 0.35, -7.52));
+  // Luminous amber bulb inside
+  g.add(mesh(new THREE.SphereGeometry(0.022, 12, 10), new THREE.MeshBasicMaterial({ color: "#ffb648" }), -4.40, 0.33, -7.52, false));
+
+  // Warm golden lamp glow illuminating the living nook
+  const lamp = new THREE.PointLight("#ffa73e", 1.4, 2.5, 1.4);
+  lamp.position.set(-4.42, 0.36, -7.48);
   g.add(lamp);
 
-  // Food storage (pantry tucked in left corner near entrance)
-  g.add(mesh(new THREE.SphereGeometry(0.09, 12, 10), mat("#8c5a2b"), -5.60, 0.08, -6.95));
-  g.add(mesh(new THREE.SphereGeometry(0.07, 12, 10), mat("#a06a35"), -5.65, 0.06, -6.75));
-  const sack = mesh(new THREE.SphereGeometry(0.12, 12, 10), mat("#cbb08a", { roughness: 1 }), -5.60, 0.12, -6.85);
-  sack.scale.y = 1.2;
+  // Fluted metal bottle-cap stool with cork cushion
+  const capM = mat("#c8c8c8", { metalness: 0.85, roughness: 0.3 });
+  g.add(mesh(new THREE.CylinderGeometry(0.08, 0.075, 0.045, 20), capM, -4.50, 0.022, -7.15));
+  g.add(mesh(new THREE.CylinderGeometry(0.072, 0.072, 0.015, 16), mat("#ba8d5d", { roughness: 0.9 }), -4.50, 0.05, -7.15));
+
+  colliders.push(
+    box(-4.50, -7.50, 0.30, 0.30),
+    box(-4.50, -7.15, 0.16, 0.16),
+  );
+
+  // 4. The Pantry (Northeast Corner: X ~ -4.45, Z ~ -6.95)
+  // Rustic wooden crate / tray holding foraged pantry goods
+  const crateM = mat("#6e4726", { roughness: 0.9 });
+  g.add(mesh(new THREE.BoxGeometry(0.24, 0.04, 0.20), crateM, -4.45, 0.02, -6.92));
+
+  // 3 Sculpted Golden Acorns
+  const acornNutM = mat("#8c4d1f", { roughness: 0.35 });
+  const acornCapM = mat("#3e2510", { roughness: 0.9 });
+  const makeAcorn = (ax: number, ay: number, az: number, rx = 0, rz = 0) => {
+    const nut = mesh(new THREE.SphereGeometry(0.032, 12, 10), acornNutM, ax, ay, az);
+    nut.scale.set(1, 1.28, 1);
+    nut.rotation.set(rx, 0, rz);
+    const cap = mesh(new THREE.SphereGeometry(0.036, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), acornCapM, ax, ay + 0.02, az);
+    cap.rotation.set(rx, 0, rz);
+    g.add(nut, cap);
+  };
+  makeAcorn(-4.48, 0.05, -6.96, 0.1, 0.2);
+  makeAcorn(-4.40, 0.05, -6.94, -0.2, -0.15);
+  makeAcorn(-4.45, 0.09, -6.95, 0.3, 0.1);
+
+  // Sunflower Seeds (striped pointed seeds)
+  const seedM = mat("#222222", { roughness: 0.4 });
+  const seedList: [number, number, number][] = [
+    [-4.52, -6.86, 0.4],
+    [-4.38, -6.87, -0.6],
+    [-4.46, -6.84, 1.2],
+  ];
+  for (const [sx, sz, srot] of seedList) {
+    const seed = mesh(new THREE.ConeGeometry(0.012, 0.035, 6), seedM, sx, 0.03, sz);
+    seed.rotation.x = Math.PI / 2;
+    seed.rotation.z = srot;
+    g.add(seed);
+  }
+
+  // Ruby Berries / Cranberries
+  const berryM = mat("#c0392b", { roughness: 0.2, metalness: 0.05 });
+  g.add(mesh(new THREE.SphereGeometry(0.016, 10, 8), berryM, -4.36, 0.045, -6.98));
+  g.add(mesh(new THREE.SphereGeometry(0.014, 10, 8), berryM, -4.34, 0.04, -6.93));
+
+  // Burlap Grain Sack with gathered neck and twine string collar
+  const sackM = mat("#cbb08a", { roughness: 0.95 });
+  const sack = mesh(new THREE.SphereGeometry(0.09, 12, 10), sackM, -4.52, 0.09, -6.85);
+  sack.scale.set(1, 1.25, 1);
   g.add(sack);
-  colliders.push(box(-5.60, -6.85, 0.28, 0.28));
+  // Twine string collar
+  g.add(mesh(new THREE.TorusGeometry(0.04, 0.008, 6, 12), mat("#7a5b3a"), -4.52, 0.16, -6.85));
+
+  // Miniature Swiss Cheese Wedge nibble
+  const cheeseNibbleM = mat("#f5b027", { roughness: 0.45 });
+  const cheeseWedge = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.025, 3), cheeseNibbleM, -4.35, 0.04, -6.82);
+  cheeseWedge.rotation.y = Math.PI / 4;
+  g.add(cheeseWedge);
+
+  colliders.push(box(-4.45, -6.90, 0.28, 0.28));
+
+  // 5. Personal Details on Walls & Props
+  // Framed Crayon Sketch of Cheese on Back Wall (Z = -7.98)
+  const frameWoodM = mat("#3a2212", { roughness: 0.6 });
+  const sketchM = mat("#ffffff", { map: miniPortraitTexture(), roughness: 0.85 });
+  g.add(mesh(new THREE.BoxGeometry(0.16, 0.16, 0.02), frameWoodM, -4.95, 0.38, -7.98));
+  const sketchCanvas = mesh(new THREE.PlaneGeometry(0.13, 0.13), sketchM, -4.95, 0.38, -7.968, false);
+  g.add(sketchCanvas);
+
+  // Miniature Wall Shelf (wooden popsicle stick mounted with safety pins)
+  g.add(mesh(new THREE.BoxGeometry(0.28, 0.015, 0.05), spoolWoodM, -5.40, 0.42, -7.97));
+  // 2 miniature books on shelf
+  g.add(mesh(new THREE.BoxGeometry(0.03, 0.065, 0.045), mat("#8b2635"), -5.45, 0.46, -7.97));
+  g.add(mesh(new THREE.BoxGeometry(0.025, 0.06, 0.045), mat("#2b4c7e"), -5.41, 0.458, -7.97));
+  // Rolled parchment map
+  const scroll = mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.08, 8), mat("#eae0cb"), -5.33, 0.435, -7.97);
+  scroll.rotation.z = Math.PI / 2;
+  g.add(scroll);
+
+  // Giant Golden Safety Pin leaning casually in the corner
+  const pinM = mat("#d4af37", { metalness: 0.9, roughness: 0.2 });
+  const pin = mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.22, 8), pinM, -5.78, 0.10, -7.88);
+  pin.rotation.z = 0.22;
+  pin.rotation.x = 0.15;
+  g.add(pin);
 
   // ── Home marker ────────────────────────────────────────────────────────
   const homeMarker = new THREE.Mesh(
