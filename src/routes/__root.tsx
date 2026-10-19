@@ -73,30 +73,30 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   );
 }
 
+import { getSeoMeta, resolveSiteUrl } from "@/lib/seo";
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
-      { title: "Little Mouse, Big Adventure" },
-      { name: "description", content: "A cozy, third-person 3D mouse exploration game." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Little Mouse, Big Adventure" },
-      { property: "og:description", content: "A cozy, third-person 3D mouse exploration game." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
-    ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;700;800&display=swap" },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-    ],
-  }),
+  head: () => {
+    const siteUrl = resolveSiteUrl();
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
+        ...getSeoMeta(),
+      ],
+      links: [
+        {
+          rel: "stylesheet",
+          href: appCss,
+        },
+        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;700;800&display=swap" },
+        { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+        { rel: "alternate icon", href: "/favicon.ico", type: "image/x-icon" },
+        ...(siteUrl ? [{ rel: "canonical", href: siteUrl }] : []),
+      ],
+    };
+  },
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,

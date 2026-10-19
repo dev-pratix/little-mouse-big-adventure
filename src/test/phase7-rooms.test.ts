@@ -42,8 +42,8 @@ describe("Phase 7: Room Upgrades, Navigation & Cheese Reachability", () => {
 
   // Platforms defined in furniture across all 4 rooms:
   const livingRug: Platform = platform(-4.89, -3.48, 3.22, 4.24, 0.006);
-  const libraryRug: Platform = platform(-2.70, 3.70, 3.31, 3.31, 0.006);
-  const bedroomRug: Platform = platform(5.60, 3.40, 5.02, 3.86, 0.006);
+  const libraryRug: Platform = platform(-2.25, 4.30, 3.31, 3.31, 0.006);
+  const bedroomRug: Platform = platform(5.60, 3.40, 4.50, 3.86, 0.006);
   const studyMat: Platform = platform(6.20, -2.70, 2.00, 2.00, 0.006);
   const burrowPlatform: Platform = platform(-5.00, -7.60, 2.00, 1.60, 0.003);
 
@@ -55,10 +55,10 @@ describe("Phase 7: Room Upgrades, Navigation & Cheese Reachability", () => {
   const bedFootRight = box(6.92, 3.15, 0.20, 0.20);
   const deskPedestal = box(7.33, -3.50, 1.18, 0.60);
   const deskSupport = box(7.33, -1.70, 1.18, 0.20);
-  const deskChair = box(6.04, -2.70, 0.40, 0.40);
-  const libraryLowBookcase = box(-3.30, 6.11, 1.00, 0.625);
-  const libraryChair = box(-3.10, 3.30, 1.20, 1.20);
-  const studyLowBookcase = box(3.30, -6.15, 1.00, 0.625);
+  const deskChair = box(6.24, -2.70, 0.78, 0.84);
+  const libraryLowBookcase = box(-4.30, 6.11, 1.00, 0.625);
+  const libraryChair = box(-3.15, 4.25, 1.35, 1.35);
+  const studyLowBookcase = box(3.50, -6.11, 1.00, 0.625);
 
   const furnitureColliders: Box[] = [
     bedHeadboard,
@@ -79,7 +79,7 @@ describe("Phase 7: Room Upgrades, Navigation & Cheese Reachability", () => {
     expect(groundY({ x: -4.89, z: -3.48 }, MOUSE.radius, allPlatforms, 0)).toBe(0.006);
 
     // 2. Library circular reading rug
-    expect(groundY({ x: -2.70, z: 3.70 }, MOUSE.radius, allPlatforms, 0)).toBe(0.006);
+    expect(groundY({ x: -2.25, z: 4.30 }, MOUSE.radius, allPlatforms, 0)).toBe(0.006);
 
     // 3. Bedroom rounded area rug
     expect(groundY({ x: 5.60, z: 3.40 }, MOUSE.radius, allPlatforms, 0)).toBe(0.006);

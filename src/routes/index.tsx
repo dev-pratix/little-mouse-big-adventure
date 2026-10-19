@@ -13,17 +13,12 @@ import {
 import type { Engine } from "@/game/engine";
 import { createStore } from "@/game/state";
 
+import { getSeoMeta } from "@/lib/seo";
+
 export const Route = createFileRoute("/")({
   ssr: false,
   head: () => ({
-    meta: [
-      { title: "Little Mouse, Big Adventure — Cozy 3D Mouse Game" },
-      { name: "description", content: "A cozy, third-person 3D mouse exploration game set inside a miniature house." },
-      { property: "og:title", content: "Little Mouse, Big Adventure — Cozy 3D Mouse Game" },
-      { property: "og:description", content: "A cozy, third-person 3D mouse exploration game set inside a miniature house." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
+    meta: getSeoMeta(),
   }),
   component: Game,
 });
