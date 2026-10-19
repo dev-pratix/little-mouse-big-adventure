@@ -49,7 +49,7 @@ function buildMouseModel() {
   }
   const feet: THREE.Mesh[] = [];
   for (const [x, z] of ([[-0.05, 0.08], [0.05, 0.08], [-0.06, -0.08], [0.06, -0.08]] as const)) {
-    feet.push(add(new THREE.SphereGeometry(0.022, 8, 6), pink, [x, 0.018, z], [1, 0.6, 1.4]));
+    feet.push(add(new THREE.SphereGeometry(0.022, 8, 6), pink, [x, 0.0135, z], [1, 0.6, 1.4]));
   }
   const tail = new THREE.Group();
   tail.position.set(0, 0.07, -0.14);

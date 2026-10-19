@@ -136,9 +136,11 @@ export class Engine {
     loadFurniture(this.world.group)
       .then((result) => {
         this.furnitureResult = result;
-        // Push furniture colliders into the live colliders array so physics picks them up
+        // Push furniture colliders and walkable platforms into the live arrays
         this.world.colliders.push(...result.colliders);
+        this.world.platforms.push(...result.platforms);
         console.log("[engine] colliders count after furniture load:", this.world.colliders.length);
+        console.log("[engine] platforms count after furniture load:", this.world.platforms.length);
       })
       .catch((e) => {
         console.warn("[engine] furniture load error", e);

@@ -22,7 +22,7 @@
  */
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { box, type Box } from "./collision";
+import { box, platform, type Box, type Platform } from "./collision";
 import { contactShadowTexture } from "./textures";
 import { ROOM } from "./world";
 
@@ -49,11 +49,14 @@ function enhanceModelMaterials(root: THREE.Object3D) {
         if (m instanceof THREE.MeshStandardMaterial) {
           const name = (m.name || "").toLowerCase();
           if (name.includes("wood")) {
-            m.roughness = 0.46;
+            m.roughness = 0.45;
             m.metalness = 0.04;
-          } else if (name.includes("carpet") || name.includes("fabric") || name.includes("bear") || name.includes("toy")) {
-            m.roughness = 0.92;
+          } else if (name.includes("carpet") || name.includes("fabric") || name.includes("bear") || name.includes("toy") || name.includes("cushion") || name.includes("pillow")) {
+            m.roughness = 0.94;
             m.metalness = 0.0;
+          } else if (name.includes("screen") || name.includes("glass") || name.includes("tv")) {
+            m.roughness = 0.10;
+            m.metalness = 0.20;
           } else if (name.includes("metal")) {
             if (name.includes("dark")) {
               m.roughness = 0.18;
@@ -93,7 +96,7 @@ async function loadModel(url: string): Promise<THREE.Group> {
   });
 }
 
-/** Clone a loaded model and place it into the scene at (x, y, z) with rotation and scale. */
+/** Clone a loaded model and place it into the scene at (x, y, z) with rotation and scalar or 3D scale. */
 function place(
   parent: THREE.Group,
   model: THREE.Group,
@@ -101,12 +104,16 @@ function place(
   y: number,
   z: number,
   ry = 0,
-  scale = 1,
+  scale: number | { x: number; y: number; z: number } = 1,
 ): THREE.Group {
   const clone = model.clone(true);
   clone.position.set(x, y, z);
   clone.rotation.y = ry;
-  clone.scale.setScalar(scale);
+  if (typeof scale === "number") {
+    clone.scale.setScalar(scale);
+  } else {
+    clone.scale.set(scale.x, scale.y, scale.z);
+  }
   clone.traverse((o) => {
     if (o instanceof THREE.Mesh) {
       o.castShadow = true;
@@ -120,24 +127,27 @@ function place(
 // ── Public interface ─────────────────────────────────────────────────────────
 export interface FurnitureResult {
   colliders: Box[];
+  platforms: Platform[];
   dispose: () => void;
 }
 
 /**
- * Load all Kenney GLB assets, place them, and return collision boxes.
- * Fire-and-forget from Engine (colliders are pushed once the Promise resolves).
+ * Load all Kenney GLB assets, place them, and return collision boxes and walkable platforms.
+ * Fire-and-forget from Engine (colliders & platforms are pushed once the Promise resolves).
  */
 export async function loadFurniture(
   sceneGroup: THREE.Group,
 ): Promise<FurnitureResult> {
   const colliders: Box[] = [];
+  const platforms: Platform[] = [];
   const groups: THREE.Group[] = [];
 
   /**
-   * add — load model, place in scene, register collider.
+   * add — load model, place in scene, register collider or platform.
    *
    * colCX / colCZ = WORLD-SPACE CENTRE of the visible footprint (not the placement origin).
    * colW / colD   = WORLD-SPACE full extents (already scaled).
+   * platTopY      = Top surface Y height. If > 0, registers as walkable platform rather than blocking wall.
    * Pass colW=0, colD=0 for purely decorative objects with no collision.
    */
   const add = async (
@@ -145,19 +155,24 @@ export async function loadFurniture(
     x: number,
     z: number,
     ry = 0,
-    scale = 1,
+    scale: number | { x: number; y: number; z: number } = 1,
     colCX = 0,
     colCZ = 0,
     colW = 0,
     colD = 0,
     yOff = 0,
+    platTopY = 0,
   ) => {
     try {
       const model = await loadModel(file);
       const g = place(sceneGroup, model, x, yOff, z, ry, scale);
       groups.push(g);
       if (colW > 0 && colD > 0) {
-        colliders.push(box(colCX, colCZ, colW, colD));
+        if (platTopY > 0) {
+          platforms.push(platform(colCX, colCZ, colW, colD, platTopY));
+        } else {
+          colliders.push(box(colCX, colCZ, colW, colD));
+        }
       }
       return g;
     } catch (e) {
@@ -168,27 +183,28 @@ export async function loadFurniture(
 
   // ── Ambient Occlusion Ground Contact Shadows ─────────────────────────────
   const shadowTex = contactShadowTexture();
-  const shadowMat = new THREE.MeshBasicMaterial({
-    map: shadowTex,
-    transparent: true,
-    opacity: 0.35,
-    depthWrite: false,
-  });
-  const addShadow = (x: number, z: number, w: number, d: number) => {
+  const addShadow = (x: number, z: number, w: number, d: number, y = 0.003, opacity = 0.35) => {
     const geo = new THREE.PlaneGeometry(w, d);
-    const m = new THREE.Mesh(geo, shadowMat);
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      map: shadowTex,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+    }));
     m.rotation.x = -Math.PI / 2;
-    m.position.set(x, 0.003, z);
+    m.position.set(x, y, z);
     sceneGroup.add(m);
     groups.push(m as unknown as THREE.Group);
   };
 
   // Contact shadows grounding living room suite
-  addShadow(-7.545, -3.80, 0.95, 2.60);  // Under TV cabinet
-  addShadow(-3.80, -3.80, 1.45, 3.10);   // Under Sofa
-  addShadow(-5.80, -3.80, 1.25, 1.25);   // Under Coffee table
-  addShadow(-5.80, -2.19, 1.35, 1.15);   // Under Armchair
-  addShadow(-3.135, -6.065, 0.65, 0.65); // Under Cardboard box
+  addShadow(-7.545, -3.80, 0.95, 2.60, 0.003);  // Under TV cabinet (hardwood)
+  addShadow(-3.135, -6.065, 0.65, 0.65, 0.003); // Under Cardboard box (hardwood)
+  addShadow(-4.89, -3.48, 3.35, 4.35, 0.002, 0.20); // Soft ambient halo beneath living room rug
+  // Contact shadows on top of carpet surface (Y = 0.0065)
+  addShadow(-3.80, -3.80, 1.45, 3.10, 0.0065);  // Under Sofa
+  addShadow(-5.80, -3.80, 1.25, 1.25, 0.0065);  // Under Coffee table
+  addShadow(-5.80, -2.19, 1.35, 1.15, 0.0065);  // Under Armchair
 
   // =========================================================================
   //  LAYOUT — 4-Room Floor Plan (X: -8 left → +8 right, Z: -6.5 back → +6.5 front)
@@ -258,12 +274,15 @@ export async function loadFurniture(
     box(-4.30, -2.45, 0.16, 0.16), // Front-right leg
   );
 
-  // Sofa Corner Throw Pillows (cozy lived-in details nested against seat armrests)
+  // Sofa Throw Pillows (plush corner accents + center lumbar pillow)
   await add(FURN + "pillow.glb",
     -4.10, -4.95, 0, 2.0,
     0, 0, 0, 0, 0.46);
   await add(FURN + "pillowBlue.glb",
     -4.10, -2.65, 0, 2.0,
+    0, 0, 0, 0, 0.46);
+  await add(FURN + "pillowBlueLong.glb",
+    -3.65, -3.80, -Math.PI / 2, 2.0,
     0, 0, 0, 0, 0.46);
 
   // Coffee Table (tableCoffeeSquare.glb) — centered between TV and sofa
@@ -280,13 +299,21 @@ export async function loadFurniture(
     box(-5.35, -3.35, 0.10, 0.10), // Front-right leg
   );
 
-  // Coffee Table Accessories: Potted Succulent + Reading Books
+  // Coffee Table Accessories: Potted Succulent + Reading Books + Sleek Remote Control
   await add(FURN + "plantSmall2.glb",
     -5.60, -3.60, 0, 2.0,
     0, 0, 0, 0, 0.58);
   await add(FURN + "books.glb",
     -6.00, -3.95, 0.4, 2.0,
     0, 0, 0, 0, 0.58);
+
+  // Sleek TV remote control resting beside the reading books
+  const remoteM = new THREE.MeshStandardMaterial({ color: "#1a1a1a", roughness: 0.35, metalness: 0.15 });
+  const remoteMesh = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, 0.16), remoteM);
+  remoteMesh.position.set(-5.65, 0.586, -4.05);
+  remoteMesh.rotation.y = 0.28;
+  sceneGroup.add(remoteMesh);
+  groups.push(remoteMesh as unknown as THREE.Group);
 
   // Armchair (loungeChair.glb) — North flank, naturally grouped with sofa & table
   // Seat faces South (-Z) directly into the coffee table and sofa suite.
@@ -300,10 +327,21 @@ export async function loadFurniture(
     -5.80, -2.10, Math.PI, 1.8,
     0, 0, 0, 0, 0.42);
 
-  // Living Room Rug (rugRectangle.glb) — frames sofa, table, and armchair suite
+  // Living Room Rug (rugRectangle.glb) — centered under sofa, table, and armchair suite
+  // Model local: X in [0, 1.57], Z in [-0.92, 0], Y in [0, 0.01].
+  // Scaled with realistic 6mm thickness: scaleX=2.7, scaleY=0.6, scaleZ=3.5 (Y top = 0.006m).
+  // Rotated ry = -Math.PI / 2 aligns longer edge along Z, framing the conversation suite:
+  // World X: [-6.50, -3.28] (centered at X = -4.89)
+  // World Z: [-5.60, -1.36] (centered at Z = -3.48)
+  // Walkable platform with platTopY = 0.006 elevates mouse paws onto carpet surface!
   await add(FURN + "rugRectangle.glb",
-    -5.60, -3.80, 0, 2.8,
-    0, 0, 0, 0);
+    -6.50, -5.60, -Math.PI / 2, { x: 2.7, y: 0.6, z: 3.5 },
+    -4.89, -3.48, 3.22, 4.24, 0, 0.006);
+
+  // Potted Houseplant beside TV Media Cabinet (SW corner accent)
+  await add(FURN + "plantSmall1.glb",
+    -7.50, -5.35, 0, 2.0,
+    -7.50, -5.35, 0.30, 0.30);
 
   // Floor lamp — living room SW corner lighting
   await add(FURN + "lampSquareFloor.glb",
@@ -379,10 +417,11 @@ export async function loadFurniture(
     1.00, 5.88, 0, 2.2,
     1.64, 6.15, 1.34, 0.55);
 
-  // Accent Rug near foot of bed (decorative, no collider)
+  // Accent Rug near foot of bed (rugDoormat.glb)
+  // Scaled with 6mm thickness and registered as walkable platform (topY = 0.006m)
   await add(FURN + "rugDoormat.glb",
-    5.60, 2.00, 0, 2.5,
-    0, 0, 0, 0);
+    5.065, 2.295, 0, { x: 2.5, y: 0.6, z: 2.5 },
+    5.60, 2.00, 1.07, 0.59, 0, 0.006);
 
   // ── 4. STUDY / WORK ZONE (South-East Room: X[0, 8], Z[-6.5, 0]) ────────────
 
@@ -426,13 +465,14 @@ export async function loadFurniture(
 
   // ── 5. MINIATURE COMPANION IN MOUSE BURROW ─────────────────────────────────
   // Tiny stuffed teddy bear resting on the matchbox bed (West burrow nook)
-  // Scaled down to mouse scale (~0.18 - 0.20), tucked cozily against the pillow.
+  // Scaled down to mouse scale (~0.18 - 0.20), tucked cozily against the pillow on expanded bed.
   await add(FURN + "bear.glb",
-    -5.58, -7.56, Math.PI / 4, 0.18,
+    -5.68, -7.76, Math.PI / 4, 0.18,
     0, 0, 0, 0, 0.14);
 
   return {
     colliders,
+    platforms,
     dispose: () => {
       for (const g of groups) {
         g.traverse((o) => {
