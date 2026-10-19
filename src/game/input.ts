@@ -14,7 +14,23 @@ export class Input {
     if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
   };
   private up = (e: KeyboardEvent) => this.keys.delete(e.code);
-  private blur = () => this.keys.clear();
+  private blur = () => {
+    this.keys.clear();
+    this.resetTouch();
+  };
+
+  /** Programmatic jump trigger from mobile touch button */
+  triggerJump() {
+    this.jumpPending = true;
+  }
+
+  /** Clears touch joystick, sprint, and jump state (e.g. on blur, pause, or orientation change) */
+  resetTouch() {
+    this.joy.x = 0;
+    this.joy.y = 0;
+    this.sprint = false;
+    this.jumpPending = false;
+  }
 
   constructor() {
     window.addEventListener("keydown", this.down);

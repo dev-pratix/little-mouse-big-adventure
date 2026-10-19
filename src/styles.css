@@ -168,7 +168,32 @@
   .cheese-icon { display: inline-block; width: 1.3rem; height: 1rem; background: var(--cozy-cheese);
     clip-path: polygon(0 100%, 100% 100%, 100% 20%); border-radius: 2px;
     box-shadow: inset -3px -3px 0 var(--cozy-cheese-deep); }
-  .joystick-base { background: oklch(0.97 0.025 85 / 0.45); border: 2px solid oklch(0.97 0.025 85 / 0.8); }
-  .joystick-knob { background: var(--cozy-cheese); box-shadow: 0 3px 0 var(--cozy-cheese-deep); }
+  .joystick-base { background: oklch(0.97 0.025 85 / 0.55); border: 2.5px solid oklch(0.97 0.025 85 / 0.9); box-shadow: 0 4px 16px rgba(0,0,0,0.25); backdrop-filter: blur(4px); }
+  .joystick-knob { background: var(--cozy-cheese); box-shadow: 0 3px 0 var(--cozy-cheese-deep), 0 2px 8px rgba(0,0,0,0.25); }
+  .btn-touch-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-family: "Fredoka", sans-serif;
+    font-weight: 600;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.1s ease;
+  }
+  .btn-touch-action:active {
+    transform: scale(0.94) translateY(2px);
+  }
 }
 @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes rotate-device {
+  0%, 15% { transform: rotate(0deg); }
+  45%, 70% { transform: rotate(-90deg); }
+  90%, 100% { transform: rotate(0deg); }
+}
+.rotate-device-anim {
+  animation: rotate-device 2.6s ease-in-out infinite;
+  transform-origin: center center;
+}

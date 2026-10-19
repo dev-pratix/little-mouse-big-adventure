@@ -1,16 +1,123 @@
+import { useState, useEffect } from "react";
 import type { GameState, Store } from "@/game/state";
 
 const Cheese = () => <span aria-hidden className="cheese-icon" />;
 
+/** Capability detection hook for mobile touch and viewport orientation */
+export function useDeviceCapabilities() {
+  const [isTouch, setIsTouch] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
+
+  useEffect(() => {
+    const checkTouch = () => {
+      const touch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      setIsTouch(touch);
+    };
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+
+    checkTouch();
+    checkOrientation();
+
+    window.addEventListener("resize", checkOrientation);
+    window.addEventListener("orientationchange", checkOrientation);
+    return () => {
+      window.removeEventListener("resize", checkOrientation);
+      window.removeEventListener("orientationchange", checkOrientation);
+    };
+  }, []);
+
+  return { isTouch, isPortrait };
+}
+
+/** Attempts landscape orientation locking if permitted by the browser */
+export async function requestLandscape() {
+  if (typeof window === "undefined") return;
+  try {
+    if (screen.orientation && "lock" in screen.orientation) {
+      await (screen.orientation as unknown as { lock: (mode: string) => Promise<void> }).lock("landscape");
+    }
+  } catch {
+    // Graceful fallback: some browsers require full-screen before locking orientation
+  }
+}
+
+/** Early Access Development Welcome Screen */
 export function TitleScreen({ store }: { store: Store }) {
+  const handleStart = () => {
+    requestLandscape();
+    store.play();
+  };
+
   return (
-    <div className="overlay-scrim absolute inset-0 flex items-center justify-center p-6">
-      <div className="panel-cozy max-w-md p-8 text-center">
-        <p className="eyebrow">A tiny adventure</p>
-        <h1 className="title-logo mt-2">MOUSECHIEF</h1>
-        <p className="mt-3 text-muted-foreground">Tiny mouse. Giant world. Questionable morals.</p>
-        <button className="btn-cozy mt-7 px-10 py-3 text-lg" onClick={store.play} autoFocus>Play</button>
-        <p className="mt-5 text-xs text-muted-foreground">WASD / arrows to move · Shift to scurry · Esc to pause</p>
+    <div className="overlay-scrim absolute inset-0 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div className="panel-cozy max-w-lg w-full p-6 sm:p-8 text-center my-auto animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <span className="scale-110"><Cheese /></span>
+          <p className="eyebrow tracking-widest text-xs">An Early Access Experience</p>
+          <span className="scale-110"><Cheese /></span>
+        </div>
+
+        <h1 className="title-logo text-3xl sm:text-4xl md:text-5xl tracking-tight leading-none mt-1">
+          Little Mouse, Big Adventure
+        </h1>
+
+        <div className="mt-4 px-2 py-3 rounded-xl bg-black/5 dark:bg-white/5 border border-amber-900/10 dark:border-white/10 text-xs sm:text-sm text-foreground/80 leading-relaxed text-left sm:text-center">
+          You're playing an early development build! The game is still being improved, so you may encounter bugs,
+          unfinished details, or performance issues. Thanks for being part of the journey.
+        </div>
+
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <button
+            className="btn-cozy w-full sm:w-auto px-10 py-3.5 text-lg font-bold shadow-lg"
+            onClick={handleStart}
+            autoFocus
+          >
+            Play Game
+          </button>
+
+          <div className="flex items-center gap-2 mt-1 text-[0.7rem] text-muted-foreground font-medium">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span>Work in Progress · Early Development Build</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Portrait Orientation Blocker for touch devices */
+export function RotateDevicePrompt() {
+  return (
+    <div className="overlay-scrim fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center select-none backdrop-blur-md">
+      <div className="panel-cozy max-w-xs w-full p-6 flex flex-col items-center shadow-2xl animate-in fade-in duration-200">
+        <div className="relative mb-5 flex items-center justify-center w-20 h-20 rounded-2xl bg-amber-500/15 border-2 border-amber-400/30">
+          <svg
+            className="w-12 h-12 text-amber-500 rotate-device-anim"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+            <path d="M12 18h.01" />
+          </svg>
+        </div>
+
+        <h2 className="font-display text-2xl font-bold text-foreground">Rotate Your Device</h2>
+        <p className="mt-2 text-sm text-muted-foreground leading-snug">
+          This little adventure is best played in landscape mode.
+        </p>
+
+        <button
+          className="btn-soft mt-5 px-6 py-2 text-xs font-semibold"
+          onClick={() => requestLandscape()}
+        >
+          Try Rotate Screen
+        </button>
       </div>
     </div>
   );
@@ -19,31 +126,44 @@ export function TitleScreen({ store }: { store: Store }) {
 /** Small key hint badge */
 function Key({ label }: { label: string }) {
   return (
-    <kbd style={{
-      display: "inline-block",
-      padding: "1px 6px",
-      background: "rgba(255,255,255,0.15)",
-      border: "1px solid rgba(255,255,255,0.3)",
-      borderRadius: "4px",
-      fontFamily: "inherit",
-      fontSize: "0.7rem",
-      lineHeight: "1.4",
-      letterSpacing: "0.02em",
-    }}>{label}</kbd>
+    <kbd
+      style={{
+        display: "inline-block",
+        padding: "1px 6px",
+        background: "rgba(255,255,255,0.15)",
+        border: "1px solid rgba(255,255,255,0.3)",
+        borderRadius: "4px",
+        fontFamily: "inherit",
+        fontSize: "0.7rem",
+        lineHeight: "1.4",
+        letterSpacing: "0.02em",
+      }}
+    >
+      {label}
+    </kbd>
   );
 }
 
-export function HUD({ s, store }: { s: GameState; store: Store }) {
+export function HUD({ s, store, isTouch }: { s: GameState; store: Store; isTouch?: boolean }) {
   const done = s.cheese >= s.total;
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4"
+        style={{
+          paddingTop: "max(1rem, env(safe-area-inset-top, 0px))",
+          paddingLeft: "max(1rem, env(safe-area-inset-left, 0px))",
+          paddingRight: "max(1rem, env(safe-area-inset-right, 0px))",
+        }}
+      >
         <div className="flex flex-col gap-2">
           <div className="panel-cozy max-w-[17rem] px-4 py-3">
             <p className="eyebrow">Mission</p>
             <p className="font-display text-base leading-tight">A Mouse's First Heist</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {done ? "✨ All cheese collected! Scurry back to your mouse burrow!" : "Steal three pieces of cheese. Look for golden beacons!"}
+              {done
+                ? "✨ All cheese collected! Scurry back to your mouse burrow!"
+                : "Steal three pieces of cheese. Look for golden beacons!"}
             </p>
           </div>
           {s.isHiding && (
@@ -57,41 +177,65 @@ export function HUD({ s, store }: { s: GameState; store: Store }) {
             <div className="panel-cozy flex items-center gap-2 px-4 py-2 font-display text-xl" aria-label="cheese counter">
               <Cheese /> {s.cheese}/{s.total}
             </div>
-            <button className="btn-cozy pointer-events-auto h-11 w-11 rounded-full" aria-label="Pause" onClick={store.pause}>II</button>
-          </div>
-          <div className="hidden portrait:flex sm:hidden items-center gap-1.5 px-3 py-1 rounded-full bg-black/45 backdrop-blur-md text-[0.68rem] text-amber-200/90 border border-amber-300/20 shadow">
-            <span>🔄</span> Rotate for wide view
+            <button
+              className="btn-cozy pointer-events-auto h-11 w-11 rounded-full text-base font-bold flex items-center justify-center"
+              aria-label="Pause"
+              onClick={store.pause}
+            >
+              II
+            </button>
           </div>
         </div>
       </div>
-      {/* Controls hint — desktop only, bottom-centre, unobtrusive */}
+
+      {/* Device-aware Controls hint — bottom-centre */}
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-4 hidden md:flex justify-center"
+        className="pointer-events-none absolute inset-x-0 bottom-3.5 flex justify-center"
+        style={{
+          paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))",
+        }}
         aria-label="controls hint"
       >
-        <div style={{
-          display: "flex",
-          gap: "12px",
-          alignItems: "center",
-          background: "rgba(0,0,0,0.38)",
-          backdropFilter: "blur(6px)",
-          borderRadius: "999px",
-          padding: "5px 14px",
-          color: "rgba(255,255,255,0.8)",
-          fontSize: "0.72rem",
-          fontFamily: "inherit",
-          flexWrap: "wrap",
-          justifyContent: "center",
-        }}>
-          <span><Key label="WASD" /> Move</span>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <span><Key label="Shift" /> Sprint</span>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <span><Key label="Space" /> Jump</span>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <span><Key label="R" /> Reset Cam</span>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <span><Key label="Esc" /> Pause</span>
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            alignItems: "center",
+            background: "rgba(0,0,0,0.42)",
+            backdropFilter: "blur(8px)",
+            borderRadius: "999px",
+            padding: "5px 14px",
+            color: "rgba(255,255,255,0.85)",
+            fontSize: "0.72rem",
+            fontFamily: "inherit",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          }}
+        >
+          {isTouch ? (
+            <>
+              <span>Move: left joystick</span>
+              <span style={{ opacity: 0.35 }}>·</span>
+              <span>Look: drag right side</span>
+              <span style={{ opacity: 0.35 }}>·</span>
+              <span>Jump: jump button</span>
+              <span style={{ opacity: 0.35 }}>·</span>
+              <span>Sprint: hold sprint</span>
+            </>
+          ) : (
+            <>
+              <span><Key label="WASD" /> Move</span>
+              <span style={{ opacity: 0.35 }}>·</span>
+              <span><Key label="Shift" /> Sprint</span>
+              <span style={{ opacity: 0.35 }}>·</span>
+              <span><Key label="Space" /> Jump</span>
+              <span style={{ opacity: 0.35 }}>·</span>
+              <span><Key label="R" /> Reset Cam</span>
+              <span style={{ opacity: 0.35 }}>·</span>
+              <span><Key label="Esc" /> Pause</span>
+            </>
+          )}
         </div>
       </div>
     </>

@@ -45,20 +45,28 @@ export class Engine {
   private onMouseMove: (e: MouseEvent) => void;
   private onWheel: (e: WheelEvent) => void;
   private onKeyDown: (e: KeyboardEvent) => void;
+  private onOrientationChange: () => void;
 
   constructor(private host: HTMLElement, private store: Store) {
+    const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Cap pixel ratio to 1.75 on touch/mobile devices to avoid GPU fill-rate throttling on high-DPI screens
+    const maxDPR = isTouch ? 1.75 : 2.0;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDPR));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
+    this.renderer.domElement.style.touchAction = "none";
     host.appendChild(this.renderer.domElement);
 
     // ----- Pointer‑lock / mouse‑look handling -----
-    // Click the canvas to request pointer lock
+    // Click the canvas to request pointer lock on desktop only (not on mobile touch devices)
     this.onCanvasClick = () => {
-      this.renderer.domElement.requestPointerLock();
+      if (!isTouch) {
+        this.renderer.domElement.requestPointerLock();
+      }
     };
     this.renderer.domElement.addEventListener("click", this.onCanvasClick);
 
@@ -157,6 +165,13 @@ export class Engine {
       if (s.restartToken !== this.lastToken) this.reset();
       this.world.homeMarker.visible = s.cheese >= s.total;
     });
+
+    this.onOrientationChange = () => {
+      setTimeout(() => this.resize(), 60);
+      setTimeout(() => this.resize(), 250);
+    };
+    window.addEventListener("orientationchange", this.onOrientationChange);
+    window.addEventListener("resize", this.onOrientationChange);
 
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(host);
@@ -272,10 +287,23 @@ export class Engine {
     this.follow.reset(this.mouse.pos.x, this.mouse.pos.z, this.mouse.yaw);
   }
 
+  /** Add camera orbit angle (for touch camera dragging or mouse drag) */
+  addCameraLook(deltaYaw: number, deltaPitch: number) {
+    this.follow.addYaw(deltaYaw);
+    this.follow.addPitch(deltaPitch);
+  }
+
+  /** Add camera distance (zoom) */
+  addCameraZoom(delta: number) {
+    this.follow.addDistance(delta);
+  }
+
   dispose() {
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.unsub();
+    window.removeEventListener("orientationchange", this.onOrientationChange);
+    window.removeEventListener("resize", this.onOrientationChange);
     window.removeEventListener("pointermove", this.onPointerMove);
     this.renderer.domElement.removeEventListener("pointerleave", this.onPointerLeave);
     this.renderer.domElement.removeEventListener("click", this.onCanvasClick);
