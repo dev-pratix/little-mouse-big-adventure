@@ -4,28 +4,75 @@ import type { GameState, Store } from "@/game/state";
 
 const Cheese = () => <span aria-hidden className="cheese-icon" />;
 
+/** Helper to detect whether the user is on a touch-first mobile/tablet device vs desktop */
+export function checkIsTouchDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  const hasTouchCapability =
+    "ontouchstart" in window ||
+    (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0);
+  if (!hasTouchCapability) return false;
+
+  // Narrow desktop browser windows or laptops with touchscreens:
+  // If the device has fine pointer (mouse/trackpad) and hover capability, and does not have coarse pointer,
+  // treat as desktop.
+  if (typeof window.matchMedia === "function") {
+    const isFinePointer = window.matchMedia("(pointer: fine) and (hover: hover)").matches;
+    const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    if (isFinePointer && !isCoarsePointer) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/** Helper to detect portrait orientation */
+export function checkIsPortrait(): boolean {
+  if (typeof window === "undefined") return false;
+
+  // 1. screen.orientation API if available
+  if (typeof screen !== "undefined" && screen.orientation && typeof screen.orientation.type === "string") {
+    return screen.orientation.type.startsWith("portrait");
+  }
+
+  // 2. CSS media query if available
+  if (typeof window.matchMedia === "function") {
+    const mql = window.matchMedia("(orientation: portrait)");
+    if (mql && typeof mql.matches === "boolean") {
+      return mql.matches;
+    }
+  }
+
+  // 3. Viewport dimensions fallback
+  return window.innerHeight > window.innerWidth;
+}
+
 /** Capability detection hook for mobile touch and viewport orientation */
 export function useDeviceCapabilities() {
-  const [isTouch, setIsTouch] = useState(false);
-  const [isPortrait, setIsPortrait] = useState(false);
+  const [isTouch, setIsTouch] = useState(checkIsTouchDevice);
+  const [isPortrait, setIsPortrait] = useState(checkIsPortrait);
 
   useEffect(() => {
-    const checkTouch = () => {
-      const touch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-      setIsTouch(touch);
-    };
-    const checkOrientation = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
+    const update = () => {
+      setIsTouch(checkIsTouchDevice());
+      setIsPortrait(checkIsPortrait());
     };
 
-    checkTouch();
-    checkOrientation();
+    update();
 
-    window.addEventListener("resize", checkOrientation);
-    window.addEventListener("orientationchange", checkOrientation);
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+
+    if (typeof screen !== "undefined" && screen.orientation && "addEventListener" in screen.orientation) {
+      screen.orientation.addEventListener("change", update);
+    }
+
     return () => {
-      window.removeEventListener("resize", checkOrientation);
-      window.removeEventListener("orientationchange", checkOrientation);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      if (typeof screen !== "undefined" && screen.orientation && "removeEventListener" in screen.orientation) {
+        screen.orientation.removeEventListener("change", update);
+      }
     };
   }, []);
 
@@ -36,7 +83,7 @@ export function useDeviceCapabilities() {
 export async function requestLandscape() {
   if (typeof window === "undefined") return;
   try {
-    if (screen.orientation && "lock" in screen.orientation) {
+    if (typeof screen !== "undefined" && screen.orientation && "lock" in screen.orientation) {
       await (screen.orientation as unknown as { lock: (mode: string) => Promise<void> }).lock("landscape");
     }
   } catch {
@@ -45,9 +92,18 @@ export async function requestLandscape() {
 }
 
 /** Early Access Development Welcome Screen */
-export function TitleScreen({ store }: { store: Store }) {
+export function TitleScreen({
+  store,
+  isBlockedByOrientation,
+}: {
+  store: Store;
+  isBlockedByOrientation?: boolean;
+}) {
   const handleStart = () => {
     requestLandscape();
+    if (isBlockedByOrientation) {
+      return;
+    }
     store.play();
   };
 
@@ -71,11 +127,13 @@ export function TitleScreen({ store }: { store: Store }) {
 
         <div className="mt-6 flex flex-col items-center gap-3">
           <button
-            className="btn-cozy w-full sm:w-auto px-10 py-3.5 text-lg font-bold shadow-lg"
+            className="btn-cozy w-full sm:w-auto px-10 py-3.5 text-lg font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleStart}
-            autoFocus
+            disabled={isBlockedByOrientation}
+            aria-disabled={isBlockedByOrientation}
+            autoFocus={!isBlockedByOrientation}
           >
-            Play Game
+            {isBlockedByOrientation ? "Rotate Phone to Play" : "Play Game"}
           </button>
 
           <div className="flex items-center gap-2 mt-1 text-[0.7rem] text-muted-foreground font-medium">
@@ -91,7 +149,12 @@ export function TitleScreen({ store }: { store: Store }) {
 /** Portrait Orientation Blocker for touch devices */
 export function RotateDevicePrompt() {
   return (
-    <div className="overlay-scrim fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center select-none backdrop-blur-md">
+    <div
+      className="overlay-scrim fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 text-center select-none touch-none backdrop-blur-md"
+      role="alertdialog"
+      aria-modal="true"
+      aria-label="Rotate Your Device"
+    >
       <div className="panel-cozy max-w-xs w-full p-6 flex flex-col items-center shadow-2xl animate-in fade-in duration-200">
         <div className="relative mb-5 flex items-center justify-center w-20 h-20 rounded-2xl bg-amber-500/15 border-2 border-amber-400/30">
           <svg
@@ -102,6 +165,7 @@ export function RotateDevicePrompt() {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
+            aria-hidden="true"
           >
             <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
             <path d="M12 18h.01" />

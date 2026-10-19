@@ -119,8 +119,8 @@ Verified directly from the project's codebase:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/<your-username>/mousechief.git
-   cd mousechief
+   git clone https://github.com/<YOUR-USERNAME>/little-mouse-big-adventure.git
+   cd little-mouse-big-adventure
    ```
 
 2. **Install dependencies**:
@@ -138,7 +138,7 @@ Verified directly from the project's codebase:
 
 ## 7. Build & Test Commands
 
-Commands configured in [`package.json`](file:///C:/Users/nehab/Desktop/codecrafters/three-js/mousechief/package.json):
+Commands configured in [`package.json`](package.json):
 
 | Command | Description |
 |---|---|
@@ -155,7 +155,7 @@ Commands configured in [`package.json`](file:///C:/Users/nehab/Desktop/codecraft
 ## 8. Project Structure & Architecture
 
 ```
-mousechief/
+little-mouse-big-adventure/
 ├── public/
 │   ├── assets/
 │   │   ├── kenney_furniture-kit/   # CC0 3D furniture models (GLTF/GLB)

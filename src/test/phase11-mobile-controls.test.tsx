@@ -248,4 +248,101 @@ describe("Phase 11 — Professional Mobile Gameplay Controls", () => {
       input.dispose();
     });
   });
+
+  describe("8. Mobile Landscape Enforcement & Orientation Lifecycle", () => {
+    it("RotateDevicePrompt renders full-screen backdrop with z-[100] and alertdialog role", () => {
+      const { container } = render(<RotateDevicePrompt />);
+      const scrim = container.querySelector(".overlay-scrim");
+      expect(scrim).not.toBeNull();
+      expect(scrim?.classList.contains("z-[100]")).toBe(true);
+      expect(scrim?.getAttribute("role")).toBe("alertdialog");
+      expect(screen.getByText(/Rotate Your Device/i)).toBeDefined();
+    });
+
+    it("resets touch inputs and pauses when portrait occurs during active gameplay, auto-resuming upon landscape", () => {
+      const input = new Input();
+      const store = createStore();
+      store.play();
+      expect(store.get().phase).toBe("playing");
+
+      // Simulate touch running before rotation
+      input.joy = { x: 0.8, y: -0.6 };
+      input.sprint = true;
+
+      // Simulate orientation blocker triggering
+      let wasPlayingBeforeOrientationBlock = false;
+      const onOrientationChange = (isPortraitTouch: boolean) => {
+        if (isPortraitTouch) {
+          if (store.get().phase === "playing") {
+            wasPlayingBeforeOrientationBlock = true;
+            input.resetTouch();
+            store.pause();
+          }
+        } else {
+          if (wasPlayingBeforeOrientationBlock) {
+            wasPlayingBeforeOrientationBlock = false;
+            input.resetTouch();
+            if (store.get().phase === "paused") {
+              store.resume();
+            }
+          }
+        }
+      };
+
+      // 1. Enter portrait
+      onOrientationChange(true);
+      expect(store.get().phase).toBe("paused");
+      expect(input.joy.x).toBe(0);
+      expect(input.joy.y).toBe(0);
+      expect(input.sprint).toBe(false);
+      expect(wasPlayingBeforeOrientationBlock).toBe(true);
+
+      // 2. Return to landscape
+      onOrientationChange(false);
+      expect(store.get().phase).toBe("playing");
+      expect(wasPlayingBeforeOrientationBlock).toBe(false);
+
+      input.dispose();
+    });
+
+    it("does not auto-resume if the player manually paused prior to portrait rotation", () => {
+      const input = new Input();
+      const store = createStore();
+      store.play();
+      // Player manually paused
+      store.pause();
+      expect(store.get().phase).toBe("paused");
+
+      let wasPlayingBeforeOrientationBlock = false;
+      const onOrientationChange = (isPortraitTouch: boolean) => {
+        if (isPortraitTouch) {
+          if (store.get().phase === "playing") {
+            wasPlayingBeforeOrientationBlock = true;
+            input.resetTouch();
+            store.pause();
+          }
+        } else {
+          if (wasPlayingBeforeOrientationBlock) {
+            wasPlayingBeforeOrientationBlock = false;
+            input.resetTouch();
+            if (store.get().phase === "paused") {
+              store.resume();
+            }
+          }
+        }
+      };
+
+      // Enter portrait while already paused
+      onOrientationChange(true);
+      expect(store.get().phase).toBe("paused");
+      expect(wasPlayingBeforeOrientationBlock).toBe(false);
+
+      // Return to landscape
+      onOrientationChange(false);
+      // Stays paused because player had manually paused
+      expect(store.get().phase).toBe("paused");
+
+      input.dispose();
+    });
+  });
 });

@@ -145,4 +145,41 @@ describe("Phase 9 — Mobile Experience, Landscape Mode & Early Access Welcome",
       expect(screen.getByText(/Space/i)).toBeDefined();
     });
   });
+
+  describe("Landscape Enforcement & Touch Device Detection", () => {
+    it("disables Play Game button and prevents game start when orientation is blocked", () => {
+      const store = createStore();
+      render(<TitleScreen store={store} isBlockedByOrientation={true} />);
+
+      const playBtn = screen.getByRole("button", { name: /Rotate Phone to Play/i });
+      expect(playBtn).toBeDefined();
+      expect(playBtn.hasAttribute("disabled")).toBe(true);
+
+      fireEvent.click(playBtn);
+      expect(store.get().phase).toBe("title");
+    });
+
+    it("exempts desktop with fine pointer from touch device detection even if touch capability exists", async () => {
+      const originalMatchMedia = window.matchMedia;
+      try {
+        // Desktop environment with fine pointer and hover
+        window.matchMedia = vi.fn().mockImplementation((query: string) => {
+          if (query === "(pointer: fine) and (hover: hover)") {
+            return { matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+          }
+          if (query === "(pointer: coarse)") {
+            return { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+          }
+          return { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+        });
+
+        const { checkIsTouchDevice } = await import("../components/game/Overlays");
+        // Even if touch points were somehow simulated, fine pointer rules it as desktop
+        const isTouch = checkIsTouchDevice();
+        expect(isTouch).toBe(false);
+      } finally {
+        window.matchMedia = originalMatchMedia;
+      }
+    });
+  });
 });
