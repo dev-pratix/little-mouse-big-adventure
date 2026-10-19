@@ -3,7 +3,10 @@ import * as THREE from "three";
 function canvasTex(size: number, draw: (g: CanvasRenderingContext2D, s: number) => void, repeat = 1, isColor = true) {
   const c = document.createElement("canvas");
   c.width = c.height = size;
-  draw(c.getContext("2d")!, size);
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    draw(ctx, size);
+  }
   const t = new THREE.CanvasTexture(c);
   if (isColor) {
     t.colorSpace = THREE.SRGBColorSpace;
@@ -191,7 +194,8 @@ export function wallpaper() {
 export function contactShadowTexture() {
   const c = document.createElement("canvas");
   c.width = c.height = 256;
-  const g = c.getContext("2d")!;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
   const grad = g.createRadialGradient(128, 128, 20, 128, 128, 120);
   grad.addColorStop(0, "rgba(20, 12, 6, 0.85)");
   grad.addColorStop(0.5, "rgba(20, 12, 6, 0.40)");
@@ -211,7 +215,8 @@ export function framedArtTexture() {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 384;
-  const g = c.getContext("2d")!;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
 
   // Golden afternoon sky gradient
   const sky = g.createLinearGradient(0, 0, 0, 260);
@@ -272,6 +277,293 @@ export function framedArtTexture() {
 }
 
 /**
+ * Serene Scandinavian botanical art for the bedroom wall.
+ * Minimalist geometric arch, warm sun, and olive-sage abstract botanical fronds.
+ */
+export function bedroomArtTexture() {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 384;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
+
+  // Soft warm linen paper background
+  g.fillStyle = "#f5f0e8";
+  g.fillRect(0, 0, 512, 384);
+
+  // Subtle linen texture
+  g.fillStyle = "rgba(180, 160, 140, 0.06)";
+  for (let i = 0; i < 512; i += 3) {
+    g.fillRect(i, 0, 1, 384);
+  }
+  for (let j = 0; j < 384; j += 3) {
+    g.fillRect(0, j, 512, 1);
+  }
+
+  // Terracotta sun arch
+  g.fillStyle = "#d48166";
+  g.beginPath();
+  g.arc(256, 210, 110, Math.PI, 0);
+  g.fill();
+
+  // Warm ochre disc
+  g.fillStyle = "#e6b86a";
+  g.beginPath();
+  g.arc(170, 160, 48, 0, Math.PI * 2);
+  g.fill();
+
+  // Sage green organic leaf stem
+  g.strokeStyle = "#5a6b5c";
+  g.lineWidth = 4;
+  g.lineCap = "round";
+  g.beginPath();
+  g.moveTo(256, 340);
+  g.quadraticCurveTo(256, 220, 230, 140);
+  g.stroke();
+
+  // Botanical leaflets
+  const leaves = [
+    [252, 300, -0.6], [258, 270, 0.5],
+    [250, 240, -0.7], [254, 210, 0.6],
+    [244, 180, -0.6], [242, 155, 0.5],
+  ];
+  g.fillStyle = "#6d826f";
+  for (const [lx, ly, rot] of leaves) {
+    g.save();
+    g.translate(lx, ly);
+    g.rotate(rot);
+    g.beginPath();
+    g.ellipse(25, 0, 26, 9, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * Classic antique celestial star chart for the library.
+ * Deep midnight navy ground with gold foil constellation circles and star clusters.
+ */
+export function libraryArtTexture() {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 384;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
+
+  // Deep indigo/navy background with subtle vignette
+  const bg = g.createRadialGradient(256, 192, 40, 256, 192, 280);
+  bg.addColorStop(0, "#192841");
+  bg.addColorStop(0.7, "#0f172a");
+  bg.addColorStop(1, "#080d18");
+  g.fillStyle = bg;
+  g.fillRect(0, 0, 512, 384);
+
+  // Antiqued gold celestial boundary rings
+  g.strokeStyle = "#cfa859";
+  g.lineWidth = 2.5;
+  g.beginPath();
+  g.arc(256, 192, 150, 0, Math.PI * 2);
+  g.stroke();
+
+  g.lineWidth = 1;
+  g.beginPath();
+  g.arc(256, 192, 140, 0, Math.PI * 2);
+  g.arc(256, 192, 90, 0, Math.PI * 2);
+  g.arc(256, 192, 45, 0, Math.PI * 2);
+  g.stroke();
+
+  // Cardinal crosshair lines
+  g.strokeStyle = "rgba(207, 168, 89, 0.35)";
+  g.setLineDash([4, 4]);
+  g.beginPath();
+  g.moveTo(256, 42); g.lineTo(256, 342);
+  g.moveTo(106, 192); g.lineTo(406, 192);
+  g.stroke();
+  g.setLineDash([]);
+
+  // Constellation stars & lines
+  const stars: [number, number, number][] = [
+    [210, 130, 3], [240, 110, 2.5], [285, 120, 3.5], [315, 150, 2.5],
+    [290, 190, 3], [225, 185, 2], [180, 220, 3.5], [220, 245, 2.5],
+    [270, 255, 3], [320, 230, 2.5], [300, 275, 2], [160, 160, 2],
+  ];
+
+  g.strokeStyle = "rgba(225, 195, 125, 0.45)";
+  g.lineWidth = 1.2;
+  g.beginPath();
+  g.moveTo(stars[0][0], stars[0][1]);
+  for (let i = 1; i < 5; i++) {
+    g.lineTo(stars[i][0], stars[i][1]);
+  }
+  g.stroke();
+
+  g.beginPath();
+  g.moveTo(stars[6][0], stars[6][1]);
+  for (let i = 7; i < 11; i++) {
+    g.lineTo(stars[i][0], stars[i][1]);
+  }
+  g.stroke();
+
+  // Golden stars
+  g.fillStyle = "#ffd885";
+  for (const [sx, sy, r] of stars) {
+    g.beginPath();
+    g.arc(sx, sy, r, 0, Math.PI * 2);
+    g.fill();
+    // Soft star glow
+    g.fillStyle = "rgba(255, 235, 165, 0.35)";
+    g.beginPath();
+    g.arc(sx, sy, r * 2.2, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = "#ffd885";
+  }
+
+  // Subtle scattered distant micro-stars
+  const rStar = rng(999);
+  g.fillStyle = "rgba(255, 255, 255, 0.6)";
+  for (let i = 0; i < 60; i++) {
+    const rx = 120 + rStar() * 272;
+    const ry = 60 + rStar() * 264;
+    g.fillRect(rx, ry, 1.2, 1.2);
+  }
+
+  // Elegant Latin caption at bottom
+  g.fillStyle = "#cfa859";
+  g.font = "italic 13px serif";
+  g.textAlign = "center";
+  g.fillText("H E M I S P H A E R I U M   S T E L L A T U M", 256, 362);
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * Architectural schematic / technical blueprint for the study wall.
+ * Navy cyan drafting sheet with orthographic gear/mechanism diagram and dimension markings.
+ */
+export function studyBlueprintTexture() {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 384;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
+
+  // Deep blueprint blue
+  g.fillStyle = "#0c2c4d";
+  g.fillRect(0, 0, 512, 384);
+
+  // Technical millimeter drafting grid
+  g.strokeStyle = "rgba(64, 156, 255, 0.15)";
+  g.lineWidth = 1;
+  for (let x = 0; x < 512; x += 16) {
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 384); g.stroke();
+  }
+  for (let y = 0; y < 384; y += 16) {
+    g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke();
+  }
+
+  // Major 64px grid lines
+  g.strokeStyle = "rgba(100, 190, 255, 0.30)";
+  for (let x = 0; x < 512; x += 64) {
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 384); g.stroke();
+  }
+  for (let y = 0; y < 384; y += 64) {
+    g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke();
+  }
+
+  // Technical schematic: Precision mechanical device
+  g.strokeStyle = "#e0f2fe";
+  g.lineWidth = 2;
+  // Outer chassis / housing
+  g.strokeRect(96, 80, 240, 160);
+  // Inset chamber
+  g.strokeRect(128, 104, 176, 112);
+  // Center rotor mechanism
+  g.beginPath();
+  g.arc(216, 160, 40, 0, Math.PI * 2);
+  g.stroke();
+  g.beginPath();
+  g.arc(216, 160, 18, 0, Math.PI * 2);
+  g.stroke();
+
+  // Dimension lines with arrows and notations
+  g.strokeStyle = "#38bdf8";
+  g.lineWidth = 1.2;
+  // Top dimension line
+  g.beginPath();
+  g.moveTo(96, 60); g.lineTo(336, 60);
+  g.moveTo(96, 54); g.lineTo(96, 66);
+  g.moveTo(336, 54); g.lineTo(336, 66);
+  g.stroke();
+
+  g.fillStyle = "#38bdf8";
+  g.font = "bold 11px monospace";
+  g.textAlign = "center";
+  g.fillText("240.0 mm", 216, 54);
+
+  // Side dimension line
+  g.beginPath();
+  g.moveTo(70, 80); g.lineTo(70, 240);
+  g.moveTo(64, 80); g.lineTo(76, 80);
+  g.moveTo(64, 240); g.lineTo(76, 240);
+  g.stroke();
+
+  // Title block at bottom right
+  g.strokeStyle = "#38bdf8";
+  g.lineWidth = 1.5;
+  g.strokeRect(340, 270, 150, 95);
+  g.beginPath();
+  g.moveTo(340, 305); g.lineTo(490, 305);
+  g.moveTo(340, 335); g.lineTo(490, 335);
+  g.stroke();
+
+  g.fillStyle = "#bae6fd";
+  g.font = "bold 10px monospace";
+  g.textAlign = "left";
+  g.fillText("TITLE: APPARATUS MK-IV", 346, 292);
+  g.fillText("SCALE: 1:1  REV: B", 346, 323);
+  g.fillText("DEPT: MECH & AUTO", 346, 353);
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * Cozy woven waffle-knit blanket texture for the bedroom bed runner.
+ */
+export function waffleBlanketTexture() {
+  return canvasTex(512, (g, s) => {
+    // Warm terracotta / burnt ochre base
+    g.fillStyle = "#a85d42";
+    g.fillRect(0, 0, s, s);
+
+    const step = 16;
+    for (let x = 0; x < s; x += step) {
+      for (let y = 0; y < s; y += step) {
+        // Waffle knit relief shading
+        g.fillStyle = "rgba(70, 25, 15, 0.45)";
+        g.fillRect(x + 2, y + 2, step - 4, step - 4);
+        g.fillStyle = "rgba(255, 215, 185, 0.35)";
+        g.fillRect(x, y, step - 2, 2);
+        g.fillRect(x, y, 2, step - 2);
+      }
+    }
+
+    // Fringing on edges
+    g.fillStyle = "#ecd0be";
+    for (let i = 0; i < s; i += 6) {
+      g.fillRect(i, s - 8, 3, 8);
+    }
+  }, 2);
+}
+
+/**
  * Rustic aged pine planks for mouse burrow walls and flooring.
  */
 export function burrowPlanksTexture(repeat = 2) {
@@ -319,7 +611,8 @@ export function matchboxCoverTexture() {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 320;
-  const g = c.getContext("2d")!;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
 
   // Aged kraft cardboard paper base
   g.fillStyle = "#d2b48c";
@@ -430,7 +723,8 @@ export function patchworkRugTexture() {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 512;
-  const g = c.getContext("2d")!;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
   const center = 256;
 
   // Concentric braided braided rings
@@ -489,7 +783,8 @@ export function miniPortraitTexture() {
   const c = document.createElement("canvas");
   c.width = 256;
   c.height = 256;
-  const g = c.getContext("2d")!;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
 
   // Aged parchment paper background
   g.fillStyle = "#faf2dc";
@@ -546,7 +841,8 @@ export function stampTableclothTexture() {
   const c = document.createElement("canvas");
   c.width = 256;
   c.height = 256;
-  const g = c.getContext("2d")!;
+  const g = c.getContext("2d");
+  if (!g) return new THREE.CanvasTexture(c);
 
   // Perforated stamp edge
   g.fillStyle = "#fbf5e6";

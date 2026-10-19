@@ -6,13 +6,16 @@
 import * as THREE from "three";
 import { box, platform, type Box, type Platform } from "./collision";
 import {
+  bedroomArtTexture,
   burrowPlanksTexture,
   framedArtTexture,
+  libraryArtTexture,
   matchboxBlanketTexture,
   matchboxCoverTexture,
   miniPortraitTexture,
   patchworkRugTexture,
   stampTableclothTexture,
+  studyBlueprintTexture,
   threadSpoolTexture,
   wallpaper,
   woodFloor,
@@ -82,20 +85,41 @@ export function buildWorld(scene: THREE.Scene): World {
   const lightLiving = new THREE.PointLight("#ffeedd", 1.1, 14, 1.2);
   lightLiving.position.set(-4.5, 3.2, -3.8);
 
-  // Golden floor lamp accent glow in SW corner
+  // Golden floor lamp accent glow in SW living room corner
   const livingFloorLamp = new THREE.PointLight("#ffb86c", 0.85, 8.0, 1.4);
   livingFloorLamp.position.set(-7.40, 1.95, -5.80);
 
+  // Library overhead ambient & warm reading floor lamp glow
   const lightLibrary = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
   lightLibrary.position.set(-4.0, 3.2, 3.25);
+  const libraryReadingLamp = new THREE.PointLight("#ffb86c", 0.85, 7.0, 1.4);
+  libraryReadingLamp.position.set(-4.40, 2.15, 4.50);
 
+  // Bedroom overhead ambient & cozy bedside nightstand lamp glow
   const lightBedroom = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
   lightBedroom.position.set(4.0, 3.2, 3.25);
+  const bedroomNightstandLamp = new THREE.PointLight("#ffb86c", 0.75, 5.5, 1.4);
+  bedroomNightstandLamp.position.set(3.33, 1.15, 6.15);
 
+  // Study overhead ambient & focused warm architect desk lamp glow
   const lightStudy = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
   lightStudy.position.set(4.0, 3.2, -3.25);
+  const studyDeskLamp = new THREE.PointLight("#ffe0b2", 0.80, 5.0, 1.4);
+  studyDeskLamp.position.set(7.35, 1.65, -3.40);
 
-  g.add(hemi, sun, fill, lightLiving, livingFloorLamp, lightLibrary, lightBedroom, lightStudy);
+  g.add(
+    hemi,
+    sun,
+    fill,
+    lightLiving,
+    livingFloorLamp,
+    lightLibrary,
+    libraryReadingLamp,
+    lightBedroom,
+    bedroomNightstandLamp,
+    lightStudy,
+    studyDeskLamp
+  );
 
   // ── Floor (Scandinavian Honey Oak Hardwood Planks with PBR maps) ──
   const floorMat = new THREE.MeshStandardMaterial({
@@ -123,15 +147,38 @@ export function buildWorld(scene: THREE.Scene): World {
   side(D, ROOM.maxX, 0, -Math.PI / 2);
   side(W, 0, ROOM.maxZ, Math.PI);
 
-  // ── Living Room Wall Art (Framed Oil Landscape Painting on West Wall) ──
-  const artFrameM = mat("#3b2314", { roughness: 0.5, metalness: 0.05 });
-  const artCanvasM = mat("#ffffff", { map: framedArtTexture(), roughness: 0.85 });
-  // Outer frame moulding
-  g.add(mesh(new THREE.BoxGeometry(0.06, 1.10, 1.50), artFrameM, ROOM.minX + 0.03, 2.40, -3.80));
-  // Inset painted canvas
-  const artCanvas = mesh(new THREE.PlaneGeometry(1.40, 1.00), artCanvasM, ROOM.minX + 0.065, 2.40, -3.80, false);
-  artCanvas.rotation.y = Math.PI / 2;
-  g.add(artCanvas);
+  // ── Cohesive Framed Wall Art Across Rooms ──────────────────────────────
+  const frameDarkWood = mat("#3b2314", { roughness: 0.5, metalness: 0.05 });
+  const frameLightWood = mat("#5c3a21", { roughness: 0.55, metalness: 0.04 });
+  const frameModernBlack = mat("#1e1e1e", { roughness: 0.40, metalness: 0.20 });
+
+  // 1. Living Room: Framed Oil Landscape on West Wall
+  const livingArtCanvasM = mat("#ffffff", { map: framedArtTexture(), roughness: 0.85 });
+  g.add(mesh(new THREE.BoxGeometry(0.06, 1.10, 1.50), frameDarkWood, ROOM.minX + 0.03, 2.40, -3.80));
+  const livingArtCanvas = mesh(new THREE.PlaneGeometry(1.40, 1.00), livingArtCanvasM, ROOM.minX + 0.065, 2.40, -3.80, false);
+  livingArtCanvas.rotation.y = Math.PI / 2;
+  g.add(livingArtCanvas);
+
+  // 2. Library: Framed Antique Celestial Star Chart on North Wall
+  const libraryArtCanvasM = mat("#ffffff", { map: libraryArtTexture(), roughness: 0.85 });
+  g.add(mesh(new THREE.BoxGeometry(1.50, 1.10, 0.06), frameDarkWood, -3.80, 2.40, ROOM.maxZ - 0.03));
+  const libraryArtCanvas = mesh(new THREE.PlaneGeometry(1.40, 1.00), libraryArtCanvasM, -3.80, 2.40, ROOM.maxZ - 0.065, false);
+  libraryArtCanvas.rotation.y = Math.PI;
+  g.add(libraryArtCanvas);
+
+  // 3. Bedroom: Serene Scandinavian Botanical Art on North Wall
+  const bedroomArtCanvasM = mat("#ffffff", { map: bedroomArtTexture(), roughness: 0.85 });
+  g.add(mesh(new THREE.BoxGeometry(1.30, 1.00, 0.06), frameLightWood, 1.80, 2.40, ROOM.maxZ - 0.03));
+  const bedroomArtCanvas = mesh(new THREE.PlaneGeometry(1.20, 0.90), bedroomArtCanvasM, 1.80, 2.40, ROOM.maxZ - 0.065, false);
+  bedroomArtCanvas.rotation.y = Math.PI;
+  g.add(bedroomArtCanvas);
+
+  // 4. Study: Precision Apparatus Technical Blueprint on East Wall above Desk
+  const studyArtCanvasM = mat("#ffffff", { map: studyBlueprintTexture(), roughness: 0.85 });
+  g.add(mesh(new THREE.BoxGeometry(0.06, 1.00, 1.40), frameModernBlack, ROOM.maxX - 0.03, 2.40, -2.70));
+  const studyArtCanvas = mesh(new THREE.PlaneGeometry(1.30, 0.90), studyArtCanvasM, ROOM.maxX - 0.065, 2.40, -2.70, false);
+  studyArtCanvas.rotation.y = -Math.PI / 2;
+  g.add(studyArtCanvas);
 
   // Back wall with discreet arched mouse-hole cutout at HOLE.x = -5.0
   const shape = new THREE.Shape();
