@@ -95,19 +95,19 @@ export function buildWorld(scene: THREE.Scene): World {
   const lightLibrary = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
   lightLibrary.position.set(-4.0, 3.2, 3.25);
   const libraryReadingLamp = new THREE.PointLight("#ffb86c", 0.85, 7.0, 1.4);
-  libraryReadingLamp.position.set(-4.40, 2.15, 4.50);
+  libraryReadingLamp.position.set(-4.50, 2.15, 5.40);
 
   // Bedroom overhead ambient & cozy bedside nightstand lamp glow
   const lightBedroom = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
   lightBedroom.position.set(4.0, 3.2, 3.25);
   const bedroomNightstandLamp = new THREE.PointLight("#ffb86c", 0.75, 5.5, 1.4);
-  bedroomNightstandLamp.position.set(3.33, 1.15, 6.15);
+  bedroomNightstandLamp.position.set(3.25, 1.15, 6.20);
 
   // Study overhead ambient & focused warm architect desk lamp glow
   const lightStudy = new THREE.PointLight("#ffeedd", 0.9, 12, 1.3);
   lightStudy.position.set(4.0, 3.2, -3.25);
   const studyDeskLamp = new THREE.PointLight("#ffe0b2", 0.80, 5.0, 1.4);
-  studyDeskLamp.position.set(7.35, 1.65, -3.40);
+  studyDeskLamp.position.set(7.45, 1.65, -3.55);
 
   g.add(
     hemi,
