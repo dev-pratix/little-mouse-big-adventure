@@ -83,3 +83,34 @@ export function groundY(
   }
   return best;
 }
+
+export interface HidingZone extends Box {
+  maxY: number;
+  name: string;
+}
+
+export const HIDING_ZONES: HidingZone[] = [
+  { minX: -4.40, maxX: -3.20, minZ: -5.15, maxZ: -2.45, maxY: 0.45, name: "Under Sofa" },
+  { minX: -6.35, maxX: -5.25, minZ: -4.35, maxZ: -3.25, maxY: 0.52, name: "Under Coffee Table" },
+  { minX: 4.28, maxX: 6.92, minZ: 3.15, maxZ: 6.05, maxY: 0.72, name: "Under Bed" },
+  { minX: 6.70, maxX: 7.90, minZ: -3.25, maxZ: -1.75, maxY: 0.75, name: "Under Desk" },
+  { minX: -6.20, maxX: -3.80, minZ: -7.50, maxZ: -6.42, maxY: 0.70, name: "Mouse Burrow" },
+];
+
+/**
+ * Checks whether the mouse is currently sheltered inside an intended hiding zone.
+ */
+export function checkHiding(pos: { x: number; y: number; z: number }): { isHiding: boolean; zoneName?: string } {
+  for (const zone of HIDING_ZONES) {
+    if (
+      pos.x >= zone.minX &&
+      pos.x <= zone.maxX &&
+      pos.z >= zone.minZ &&
+      pos.z <= zone.maxZ &&
+      pos.y <= zone.maxY
+    ) {
+      return { isHiding: true, zoneName: zone.name };
+    }
+  }
+  return { isHiding: false };
+}

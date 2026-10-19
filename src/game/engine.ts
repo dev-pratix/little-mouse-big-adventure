@@ -1,6 +1,7 @@
-// Engine: renderer, single animation loop, and glue between systems and the game store.
 import * as THREE from "three";
+import { soundFX } from "./audio";
 import { CheeseField } from "./cheese";
+import { checkHiding } from "./collision";
 import { FollowCamera } from "./camera";
 import { Input } from "./input";
 import { loadFurniture, type FurnitureResult } from "./furniture";
@@ -225,10 +226,21 @@ export class Engine {
       }
 
       this.mouse.update(dt, this.move, this.follow.yaw, this.world.colliders, this.world.platforms);
+
+      // Evaluate hiding shelter under furniture / in burrow
+      const hidingInfo = checkHiding(this.mouse.pos);
+      this.store.setHiding(hidingInfo.isHiding, hidingInfo.zoneName);
+
       const got = this.cheese.update(dt, t, this.mouse.pos.x, this.mouse.pos.z);
-      for (let i = 0; i < got; i++) this.store.collect();
+      for (let i = 0; i < got; i++) {
+        this.store.collect();
+        soundFX.playCheesePickup(this.store.get().cheese);
+      }
       const now = this.store.get();
-      if (now.cheese >= now.total && isHome(this.mouse.pos.x, this.mouse.pos.z)) this.store.complete();
+      if (now.cheese >= now.total && isHome(this.mouse.pos.x, this.mouse.pos.z)) {
+        this.store.complete();
+        soundFX.playVictoryFanfare();
+      }
     } else {
       this.mouse.clearLookTarget();
       this.cheese.update(dt, t, 999, 999);
@@ -236,6 +248,7 @@ export class Engine {
     const marker = this.world.homeMarker;
     if (marker.visible) marker.scale.setScalar(1 + Math.sin(t * 4) * 0.12);
 
+    const isHiding = this.store.get().isHiding;
     this.follow.update(
       dt,
       this.mouse.pos.x,
@@ -244,6 +257,7 @@ export class Engine {
       this.mouse.yaw,
       this.mouse.speed > 0.2,
       this.move.y,
+      isHiding,
     );
     this.renderer.render(this.scene, this.camera);
   };

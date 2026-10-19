@@ -207,18 +207,18 @@ export async function loadFurniture(
 
   // ── Contact Shadows: 2. Library Reading Suite ──
   addShadow(-7.545, 3.60, 0.95, 4.90, 0.003, 0.35); // Under West wall bookcases
-  addShadow(-3.30, 6.11, 1.05, 0.65, 0.003, 0.35);  // Under North wall low bookcase
+  addShadow(-4.30, 6.11, 1.05, 0.65, 0.003, 0.35);  // Under North wall low bookcase
   addShadow(-7.20, 6.00, 0.45, 0.45, 0.003, 0.30);  // Under NW corner coat rack
-  addShadow(-2.70, 3.70, 3.40, 3.40, 0.002, 0.20);  // Soft ambient halo beneath circular reading rug
-  addShadow(-3.10, 3.30, 1.25, 1.25, 0.0065, 0.35); // Under Reading chair (carpet surface)
-  addShadow(-1.75, 4.25, 0.55, 1.25, 0.0065, 0.35); // Under Reading side table (carpet surface)
-  addShadow(-4.25, 4.35, 0.40, 0.40, 0.0065, 0.35); // Under Reading floor lamp (carpet surface)
+  addShadow(-2.25, 4.30, 3.40, 3.40, 0.002, 0.20);  // Soft ambient halo beneath circular reading rug
+  addShadow(-3.55, 4.75, 1.45, 1.45, 0.0065, 0.35); // Under Reading chair (carpet surface)
+  addShadow(-1.97, 4.62, 1.25, 0.55, 0.0065, 0.35); // Under Reading side table (carpet surface)
+  addShadow(-4.20, 5.60, 0.40, 0.40, 0.0065, 0.35); // Under Reading floor lamp (carpet surface)
 
   // ── Contact Shadows: 3. Bedroom Sanctuary Suite ──
   addShadow(5.60, 4.75, 2.90, 3.40, 0.003, 0.38);   // Under Double bed
   addShadow(3.33, 6.15, 0.70, 0.60, 0.003, 0.35);   // Under Left nightstand
   addShadow(7.48, 6.15, 0.70, 0.60, 0.003, 0.35);   // Under Right nightstand
-  addShadow(1.64, 6.15, 1.35, 0.60, 0.003, 0.35);   // Under Vanity console table
+  addShadow(1.625, 6.19, 1.25, 0.55, 0.003, 0.35);  // Under Vanity console table
   addShadow(5.60, 3.40, 5.20, 4.00, 0.002, 0.20);   // Soft ambient halo beneath bedroom area rug
   addShadow(5.55, 2.30, 1.10, 0.55, 0.0065, 0.35);  // Under End-of-bed bench (carpet surface)
 
@@ -226,7 +226,7 @@ export async function loadFurniture(
   addShadow(7.33, -3.50, 1.25, 0.65, 0.003, 0.35);  // Under Desk drawer pedestal
   addShadow(7.33, -1.70, 1.25, 0.25, 0.003, 0.35);  // Under Desk far support panel
   addShadow(7.33, -2.70, 1.10, 1.20, 0.003, 0.22);  // Ambient footwell shadow
-  addShadow(3.30, -6.15, 1.05, 0.65, 0.003, 0.35);  // Under Low storage credenza
+  addShadow(3.50, -6.11, 1.05, 0.65, 0.003, 0.35);  // Under Low storage credenza
   addShadow(7.30, -4.15, 0.45, 0.45, 0.003, 0.30);  // Under Trashcan
   addShadow(7.20, -5.80, 0.55, 0.55, 0.003, 0.35);  // Under Corner potted plant
   addShadow(6.20, -2.70, 2.10, 2.10, 0.002, 0.20);  // Soft ambient halo beneath chair mat
@@ -408,16 +408,16 @@ export async function loadFurniture(
     -7.45, 4.10, -Math.PI / 2 - 0.12, 2.4,
     0, 0, 0, 0, 1.95); // Upper shelf
 
-  // North Wall Low Bookcase / Library Credenza (Z=6.42, flush against North skirting)
+  // North Wall Low Bookcase / Library Credenza (Z in [5.80, 6.42], flush against North skirting)
   await add(FURN + "bookcaseOpenLow.glb",
-    -3.80, 6.42, Math.PI, 2.5,
-    -3.30, 6.11, 1.00, 0.625);
+    -3.80, 5.795, Math.PI, 2.5,
+    -4.30, 6.11, 1.00, 0.625);
   // Low bookcase tabletop accessories (Y=1.00m)
   await add(FURN + "books.glb",
-    -3.40, 6.10, 0, 2.2,
+    -4.45, 6.11, 0, 2.2,
     0, 0, 0, 0, 1.00);
   await add(FURN + "plantSmall1.glb",
-    -3.00, 6.10, 0, 2.0,
+    -4.05, 6.11, 0, 2.0,
     0, 0, 0, 0, 1.00);
 
   // Coat rack — North-West corner
@@ -427,42 +427,42 @@ export async function loadFurniture(
 
   // Cozy Reading Nook: Plush circular reading rug under chair & table
   await add(FURN + "rugRound.glb",
-    -4.356, 5.356, 0, { x: 3.6, y: 0.6, z: 3.6 },
-    -2.70, 3.70, 3.31, 3.31, 0, 0.006);
+    -3.906, 5.956, 0, { x: 3.6, y: 0.6, z: 3.6 },
+    -2.25, 4.30, 3.31, 3.31, 0, 0.006);
 
   // Reclining Reading Lounge Chair — angled cozily toward room center
   await add(FURN + "loungeChairRelax.glb",
-    -2.65, 2.65, Math.PI * 0.35, 2.3,
-    -3.10, 3.30, 1.20, 1.20);
+    -2.60, 4.60, Math.PI * 0.75, 2.3,
+    -3.55, 4.75, 1.40, 1.40);
   // Velvet accent throw pillow on reading chair
   await add(FURN + "pillowBlue.glb",
-    -3.05, 3.30, Math.PI * 0.35, 2.0,
+    -3.40, 4.90, Math.PI * 0.75, 2.0,
     0, 0, 0, 0, 0.45);
 
   // Reading Side Table with drawers
   await add(FURN + "sideTableDrawers.glb",
-    -1.55, 4.80, -Math.PI / 2, 2.2,
-    -1.75, 4.25, 0.50, 1.18);
-  // Side table accessories (Y=0.845m)
+    -1.40, 4.40, Math.PI, 2.2,
+    -1.97, 4.62, 1.18, 0.50);
+  // Side table accessories atop table surface (Y=0.846m)
   await add(FURN + "books.glb",
-    -1.75, 4.45, 0.4, 2.0,
-    0, 0, 0, 0, 0.845);
+    -1.97, 4.62, 0.4, 2.0,
+    0, 0, 0, 0, 0.846);
   await add(FURN + "plantSmall2.glb",
-    -1.75, 3.95, 0, 1.8,
-    0, 0, 0, 0, 0.845);
+    -2.25, 4.62, 0, 1.8,
+    0, 0, 0, 0, 0.846);
 
   // Ceramic tea cup resting on reading side table
   const teaCupMat = new THREE.MeshStandardMaterial({ color: "#f0ece1", roughness: 0.3, metalness: 0.08 });
   const teaCupMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.08, 16), teaCupMat);
-  teaCupMesh.position.set(-1.75, 0.885, 4.20);
+  teaCupMesh.position.set(-1.75, 0.885, 4.62);
   teaCupMesh.castShadow = true;
   sceneGroup.add(teaCupMesh);
   groups.push(teaCupMesh as unknown as THREE.Group);
 
   // Arched Floor Reading Lamp standing beside reading chair
   await add(FURN + "lampRoundFloor.glb",
-    -4.25, 4.35, 0, 2.5,
-    -4.25, 4.35, 0.35, 0.35);
+    -4.20, 5.60, 0, 2.5,
+    -4.20, 5.60, 0.35, 0.35);
 
   // ── 3. BEDROOM ZONE (North-East Room: X[0, 8], Z[0, 6.5]) ──────────────────
 
@@ -479,16 +479,10 @@ export async function loadFurniture(
     box(6.92, 3.15, 0.20, 0.20), // Foot-right post
   );
 
-  // Plush Bedding: Sleeping Pillows propped against headboard (Y=0.69m)
-  await add(FURN + "pillowLong.glb",
-    4.85, 5.90, Math.PI, 2.2,
-    0, 0, 0, 0, 0.69); // Left sleeping pillow
-  await add(FURN + "pillowLong.glb",
-    6.35, 5.90, Math.PI, 2.2,
-    0, 0, 0, 0, 0.69); // Right sleeping pillow
+  // Decorative blue velvet lumbar accent pillow resting on bed
   await add(FURN + "pillowBlue.glb",
     5.60, 5.65, 0, 2.0,
-    0, 0, 0, 0, 0.72); // Center decorative lumbar pillow
+    0, 0, 0, 0, 0.72);
 
   // Cozy Woven Waffle-Knit Quilt Runner folded across foot of bed
   const quiltMat = new THREE.MeshStandardMaterial({
@@ -529,15 +523,15 @@ export async function loadFurniture(
 
   // Bedroom Vanity / Dressing Console along North wall
   await add(FURN + "sideTableDrawers.glb",
-    1.00, 5.88, 0, 2.2,
-    1.64, 6.15, 1.34, 0.55);
-  // Console tabletop decor (Y=0.845m)
+    2.20, 5.96, Math.PI, 2.2,
+    1.625, 6.19, 1.15, 0.46);
+  // Console tabletop decor (Y=0.846m)
   await add(FURN + "books.glb",
-    1.40, 6.05, -0.3, 2.0,
-    0, 0, 0, 0, 0.845);
+    1.40, 6.19, -0.3, 2.0,
+    0, 0, 0, 0, 0.846);
   await add(FURN + "plantSmall1.glb",
-    1.90, 6.05, 0, 1.8,
-    0, 0, 0, 0, 0.845);
+    1.85, 6.19, 0, 1.8,
+    0, 0, 0, 0, 0.846);
 
   // End-of-Bed Upholstered Bench
   await add(FURN + "benchCushion.glb",
@@ -618,17 +612,17 @@ export async function loadFurniture(
     7.42, -1.85, 0, 1.8,
     0, 0, 0, 0, 1.152);
 
-  // Low Storage Credenza / Filing Bookcase along South wall (Z=-6.15)
-  // Keeps Cheese #2 at (5.50, -5.50) completely clear with >2.2m of space!
+  // Low Storage Credenza / Filing Bookcase along South wall (Z in [-6.42, -5.80])
+  // Keeps Cheese #2 at (5.50, -5.50) completely clear with >2.0m of space!
   await add(FURN + "bookcaseOpenLow.glb",
-    3.80, -6.15, Math.PI, 2.5,
-    3.30, -6.15, 1.00, 0.625);
+    3.00, -5.795, 0, 2.5,
+    3.50, -6.11, 1.00, 0.625);
   // Credenza storage box & reference manuals (Y=1.00m)
   await add(FURN + "cardboardBoxClosed.glb",
-    3.05, -6.15, 0.1, 1.8,
+    3.25, -6.11, 0.1, 1.8,
     0, 0, 0, 0, 1.00);
   await add(FURN + "books.glb",
-    3.55, -6.15, 0, 2.0,
+    3.75, -6.11, 0, 2.0,
     0, 0, 0, 0, 1.00);
 
   // Desk Chair Area Mat / Rug

@@ -56,19 +56,32 @@ export class FollowCamera {
     this.distance = THREE.MathUtils.clamp(this.distance + delta, MIN_DISTANCE, MAX_DISTANCE);
   }
 
+  /** Smooth blend factor (0 = open room, 1 = under furniture) */
+  private hidingBlend = 0;
+
   /** Compute camera world position with bounds and wall-clamping. */
-  private updatePosition(x: number, z: number, mouseY: number) {
-    const targetY = 0.16 + mouseY; // look at mouse body center
+  private updatePosition(x: number, z: number, mouseY: number, dt: number = 0.016, isHiding: boolean = false) {
+    const targetHidingBlend = isHiding ? 1.0 : 0.0;
+    this.hidingBlend += (targetHidingBlend - this.hidingBlend) * (1 - Math.exp(-6 * dt));
+
+    // When under furniture, smoothly tuck camera closer and lower pitch to peek underneath
+    const effectivePitch = THREE.MathUtils.lerp(this.pitch, 0.16, this.hidingBlend);
+    const effectiveDistance = THREE.MathUtils.lerp(
+      this.distance,
+      Math.min(this.distance, 1.55),
+      this.hidingBlend,
+    );
+    const targetY = THREE.MathUtils.lerp(0.16 + mouseY, 0.11 + mouseY, this.hidingBlend);
     this.look.set(x, targetY, z);
 
     const sinYaw = Math.sin(this.yaw);
     const cosYaw = Math.cos(this.yaw);
-    const sinPitch = Math.sin(this.pitch);
-    const cosPitch = Math.cos(this.pitch);
+    const sinPitch = Math.sin(effectivePitch);
+    const cosPitch = Math.cos(effectivePitch);
 
-    const offsetX = sinYaw * cosPitch * this.distance;
-    const offsetY = sinPitch * this.distance;
-    const offsetZ = cosYaw * cosPitch * this.distance;
+    const offsetX = sinYaw * cosPitch * effectiveDistance;
+    const offsetY = sinPitch * effectiveDistance;
+    const offsetZ = cosYaw * cosPitch * effectiveDistance;
 
     const idealX = x - offsetX;
     const idealY = targetY + offsetY;
@@ -79,13 +92,13 @@ export class FollowCamera {
     if (z < ROOM.minZ) {
       const nestCamX = THREE.MathUtils.clamp(idealX, NOOK.minX + 0.20, NOOK.maxX - 0.20);
       const nestCamZ = Math.max(NOOK.minZ + 0.25, idealZ);
-      const nestCamY = THREE.MathUtils.clamp(idealY, 0.18, NOOK.h - 0.10);
+      const nestCamY = THREE.MathUtils.clamp(idealY, 0.15, NOOK.h - 0.10);
       this.pos.set(nestCamX, nestCamY, nestCamZ);
     } else {
       // Main room: keep camera inside perimeter walls and above floor
       const roomCamX = THREE.MathUtils.clamp(idealX, ROOM.minX + 0.35, ROOM.maxX - 0.35);
       const roomCamZ = THREE.MathUtils.clamp(idealZ, ROOM.minZ + 0.35, ROOM.maxZ - 0.35);
-      const roomCamY = Math.max(0.20, idealY);
+      const roomCamY = Math.max(0.12, idealY);
       this.pos.set(roomCamX, roomCamY, roomCamZ);
     }
 
@@ -95,14 +108,15 @@ export class FollowCamera {
 
   /** Engine calls this each frame. */
   update(
-    _dt: number,
+    dt: number,
     x: number,
     z: number,
     mouseY: number,
     _mouseYaw: number,
     _moving: boolean,
     _forwardInput: number,
+    isHiding: boolean = false,
   ) {
-    this.updatePosition(x, z, mouseY);
+    this.updatePosition(x, z, mouseY, dt, isHiding);
   }
 }

@@ -38,10 +38,19 @@ export function HUD({ s, store }: { s: GameState; store: Store }) {
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
-        <div className="panel-cozy max-w-[16rem] px-4 py-3">
-          <p className="eyebrow">Mission</p>
-          <p className="font-display text-base leading-tight">A Mouse's First Heist</p>
-          <p className="mt-1 text-sm text-muted-foreground">{done ? "Scurry back to your mouse hole!" : "Steal three pieces of cheese."}</p>
+        <div className="flex flex-col gap-2">
+          <div className="panel-cozy max-w-[17rem] px-4 py-3">
+            <p className="eyebrow">Mission</p>
+            <p className="font-display text-base leading-tight">A Mouse's First Heist</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {done ? "✨ All cheese collected! Scurry back to your mouse burrow!" : "Steal three pieces of cheese. Look for golden beacons!"}
+            </p>
+          </div>
+          {s.isHiding && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/85 backdrop-blur-md text-xs font-medium text-emerald-300 border border-emerald-400/40 shadow-md w-fit">
+              <span className="text-sm">🐾</span> Hidden · {s.hidingZone || "Under furniture"}
+            </div>
+          )}
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-2">
@@ -118,12 +127,23 @@ export function PauseMenu({ store, onResetCamera }: { store: Store; onResetCamer
 export function CompleteScreen({ store }: { store: Store }) {
   return (
     <div className="overlay-scrim absolute inset-0 flex items-center justify-center p-6">
-      <div className="panel-cozy max-w-sm p-8 text-center">
-        <p className="eyebrow">Mission complete</p>
-        <h2 className="title-logo mt-2 text-4xl">Heist pulled off!</h2>
-        <p className="mt-3 text-muted-foreground">Three cheeses, safely stashed. The humans suspect nothing. Probably.</p>
-        <div className="mt-4 flex justify-center gap-2"><Cheese /><Cheese /><Cheese /></div>
-        <button className="btn-cozy mt-7 px-8 py-3" onClick={store.restart} autoFocus>Play again</button>
+      <div className="panel-cozy max-w-sm p-8 text-center animate-in fade-in zoom-in-95 duration-300">
+        <p className="eyebrow">Mission Complete</p>
+        <h2 className="title-logo mt-2 text-4xl">Heist Pulled Off!</h2>
+        <p className="mt-3 text-muted-foreground">
+          All three cheeses are safely stashed away in your burrow. The humans suspect nothing. Probably.
+        </p>
+        <div className="mt-5 flex justify-center gap-3">
+          <span className="scale-125"><Cheese /></span>
+          <span className="scale-125"><Cheese /></span>
+          <span className="scale-125"><Cheese /></span>
+        </div>
+        <div className="mt-4 py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-xs text-amber-200/90">
+          🏆 Master Infiltrator · 3 / 3 Cheeses Secured
+        </div>
+        <button className="btn-cozy mt-6 px-8 py-3 text-base font-semibold" onClick={store.restart} autoFocus>
+          Play Again
+        </button>
       </div>
     </div>
   );

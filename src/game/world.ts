@@ -336,21 +336,40 @@ export function buildWorld(scene: THREE.Scene): World {
   g.add(mesh(new THREE.BoxGeometry(W, 0.05, 0.20), crownM, 0, H_WALL + 0.025, 0));
 
   // ── Outer room wall colliders ─────────────────────────────────────────
+  // ── Outer room wall colliders ─────────────────────────────────────────
   const doorHalf = HOLE.w / 2; // 0.20m
   const gapMargin = 0.03; // precise clearance for 0.11m radius mouse
   const skirtT = 0.08;
-  // Back wall left side: terminates at left edge of mouse hole
+  const n = NOOK;
+
+  // Back wall (Z = ROOM.minZ = -6.50)
+  // Left of burrow: from West room boundary to burrow left wall (n.minX = -6.00)
   colliders.push({
     minX: ROOM.minX - 1,
-    maxX: HOLE.x - doorHalf - gapMargin, // -5.23
+    maxX: n.minX,
     minZ: ROOM.minZ - 1,
     maxZ: ROOM.minZ + skirtT,
   });
-  // Back wall right side: starts at right edge of mouse hole
+  // Right of burrow: from burrow right wall (n.maxX = -4.00) to East room boundary
   colliders.push({
-    minX: HOLE.x + doorHalf + gapMargin, // -4.77
+    minX: n.maxX,
     maxX: ROOM.maxX + 1,
     minZ: ROOM.minZ - 1,
+    maxZ: ROOM.minZ + skirtT,
+  });
+  // Entrance tunnel flanks connecting burrow (n.maxZ = -6.80) to mouse hole (-6.42):
+  // Left tunnel flank
+  colliders.push({
+    minX: n.minX,
+    maxX: HOLE.x - doorHalf - gapMargin, // -5.23
+    minZ: n.maxZ,
+    maxZ: ROOM.minZ + skirtT,
+  });
+  // Right tunnel flank
+  colliders.push({
+    minX: HOLE.x + doorHalf + gapMargin, // -4.77
+    maxX: n.maxX,
+    minZ: n.maxZ,
     maxZ: ROOM.minZ + skirtT,
   });
   // Left wall
@@ -378,7 +397,6 @@ export function buildWorld(scene: THREE.Scene): World {
   // ── Mouse home (Cozy Miniature Mouse Burrow behind the discreet mouse hole) ──
   // Expanded burrow: 2.00m width (X[-6.00, -4.00]), 1.60m depth (Z[-8.40, -6.80]), 0.70m height.
   // Interior length expanded by +33.3% extending rear into subfloor crawlspace.
-  const n = NOOK;
   const nw = n.maxX - n.minX, nd = n.maxZ - n.minZ;
   const ncx = (n.minX + n.maxX) / 2, ncz = (n.minZ + n.maxZ) / 2;
 
@@ -436,8 +454,8 @@ export function buildWorld(scene: THREE.Scene): World {
   platforms.push(platform(HOLE.x, -6.65, HOLE.w, 0.30, 0.002));
 
   colliders.push(
-    { minX: n.minX - 1, maxX: n.minX, minZ: n.minZ - 1, maxZ: ROOM.minZ },
-    { minX: n.maxX, maxX: n.maxX + 1, minZ: n.minZ - 1, maxZ: ROOM.minZ },
+    { minX: n.minX - 1, maxX: n.minX, minZ: n.minZ - 1, maxZ: n.maxZ },
+    { minX: n.maxX, maxX: n.maxX + 1, minZ: n.minZ - 1, maxZ: n.maxZ },
     { minX: n.minX - 1, maxX: n.maxX + 1, minZ: n.minZ - 1, maxZ: n.minZ },
   );
 

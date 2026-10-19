@@ -6,12 +6,14 @@ export interface GameState {
   cheese: number;
   total: number;
   restartToken: number;
+  isHiding: boolean;
+  hidingZone?: string;
 }
 
 type Listener = () => void;
 
 export function createStore() {
-  let state: GameState = { phase: "title", cheese: 0, total: 3, restartToken: 0 };
+  let state: GameState = { phase: "title", cheese: 0, total: 3, restartToken: 0, isHiding: false };
   const listeners = new Set<Listener>();
   const set = (patch: Partial<GameState>) => {
     state = { ...state, ...patch };
@@ -26,9 +28,14 @@ export function createStore() {
     play: () => set({ phase: "playing" }),
     pause: () => state.phase === "playing" && set({ phase: "paused" }),
     resume: () => state.phase === "paused" && set({ phase: "playing" }),
-    restart: () => set({ phase: "playing", cheese: 0, restartToken: state.restartToken + 1 }),
+    restart: () => set({ phase: "playing", cheese: 0, restartToken: state.restartToken + 1, isHiding: false, hidingZone: undefined }),
     collect: () => set({ cheese: Math.min(state.total, state.cheese + 1) }),
     complete: () => set({ phase: "complete" }),
+    setHiding: (isHiding: boolean, hidingZone?: string) => {
+      if (state.isHiding !== isHiding || state.hidingZone !== hidingZone) {
+        set({ isHiding, hidingZone });
+      }
+    },
   };
 }
 export type Store = ReturnType<typeof createStore>;

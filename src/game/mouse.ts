@@ -243,24 +243,68 @@ export class MouseController {
     this.headYaw += (this.targetHeadYaw - this.headYaw) * headSmooth;
     this.headPitch += (this.targetHeadPitch - this.headPitch) * headSmooth;
 
-    // ── Procedural walk cycle ─────────────────────────────────────────────
-    this.phase += dt * (6 + sp * 9);
+    // ── Procedural scurrying walk cycle ───────────────────────────────────
+    const stepSpeed = sp > 0.05 ? 12 + sp * 14 : 3;
+    this.phase += dt * stepSpeed;
     const amt = Math.min(1, sp / MOUSE.walk);
+    const sprintAmt = Math.max(0, (sp - MOUSE.walk) / (MOUSE.run - MOUSE.walk));
     const m = this.model;
 
     if (this.grounded) {
-      m.body.position.y = Math.abs(Math.sin(this.phase)) * 0.02 * amt;
+      if (amt > 0.05) {
+        // Double-bounce per full stride cycle during movement
+        m.body.position.y = Math.abs(Math.sin(this.phase * 2)) * 0.012 * amt;
+        // Scurry lean forward when running
+        m.body.rotation.x = 0.05 * amt + 0.06 * sprintAmt;
+      } else {
+        // Gentle breathing motion while idle
+        m.body.position.y = Math.sin(this.phase * 0.5) * 0.002;
+        m.body.rotation.x = 0;
+      }
     } else {
-      // slight lean-back while airborne
+      // Airborne: slight lean responding to vertical trajectory
       m.body.position.y = 0.02;
+      m.body.rotation.x = -THREE.MathUtils.clamp(this.vel.y * 0.08, -0.22, 0.22);
     }
-    m.feet.forEach((f, i) => (f.position.z = (i < 2 ? 0.08 : -0.08) + Math.sin(this.phase + (i % 2 === (i < 2 ? 0 : 1) ? 0 : Math.PI)) * 0.03 * amt));
-    m.tail.rotation.y = Math.sin(this.phase * 0.5) * (0.25 + 0.3 * amt);
 
-    // Head yaw from cursor tracking; head pitch combines cursor tracking + subtle idle nod
-    const idleNod = Math.sin(this.phase * 0.25) * 0.05 * (1 - amt);
+    // Quadruped diagonal trot:
+    // Pair A: foot 0 (front-left) & foot 3 (rear-right)
+    // Pair B: foot 1 (front-right) & foot 2 (rear-left)
+    const baseFootY = 0.0135;
+    const strideLen = (0.028 + 0.012 * sprintAmt) * amt;
+    const liftHeight = 0.022 * amt;
+
+    m.feet.forEach((f, i) => {
+      const baseZ = i < 2 ? 0.08 : -0.08;
+      if (!this.grounded) {
+        // Tucked slightly while airborne
+        f.position.z = baseZ;
+        f.position.y = baseFootY - 0.003;
+        return;
+      }
+      const pairOffset = (i === 0 || i === 3) ? 0 : Math.PI;
+      const phi = this.phase + pairOffset;
+      const sinPhi = Math.sin(phi);
+
+      // Z motion: forward reach on swing, backward drive on stance
+      f.position.z = baseZ + sinPhi * strideLen;
+
+      // Y motion: lift only during forward swing (sinPhi > 0); firmly grounded on stance
+      if (sinPhi > 0) {
+        f.position.y = baseFootY + sinPhi * liftHeight;
+      } else {
+        f.position.y = baseFootY;
+      }
+    });
+
+    // Dynamic tail sway and lift
+    m.tail.rotation.y = Math.sin(this.phase * 0.5) * (0.20 + 0.25 * amt);
+    m.tail.rotation.x = -0.10 - 0.14 * amt;
+
+    // Head yaw from cursor tracking; head pitch combines cursor tracking + subtle idle nod / sniffing
+    const idleSniff = Math.sin(this.phase * 0.6) * 0.04 * (1 - amt);
     m.head.rotation.y = this.headYaw;
-    m.head.rotation.x = this.headPitch + idleNod;
+    m.head.rotation.x = this.headPitch + idleSniff;
 
     this.sync();
   }
